@@ -4,7 +4,7 @@ This repository currently contains Stage 1B-A: a Kotlin/JVM console generator th
 
 ## Requirements
 
-- JDK 21
+- JDK 25 (LTS)
 - Internet access to Maven Central and the two public Xbox catalog endpoints
 
 Maven does not need to be installed. The repository includes Maven Wrapper 3.3.4 and pins Maven 3.9.16.
@@ -15,7 +15,7 @@ Maven does not need to be installed. The repository includes Maven Wrapper 3.3.4
 ./mvnw --batch-mode verify
 ```
 
-This compiles the Kotlin and Java targets for version 21 and runs the unit tests without contacting Xbox.
+This compiles the Kotlin and Java targets for version 25 and runs the unit tests without contacting Xbox.
 
 ## Generate the CSV files
 
