@@ -1,10 +1,1201 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Xbox Game Pass Ultimate Clean List</title>
-</head>
-<body>
-  <h1>GitHub Pages is working by ninnex</h1>
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Browse games included in Xbox Game Pass Ultimate but not in Premium."
+    />
+    <title>Game Pass Difference</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f7f8f7;
+        --surface: #ffffff;
+        --surface-soft: #f3f5f3;
+        --ink: #171a18;
+        --muted: #747b76;
+        --faint: #9ba29d;
+        --line: #e4e8e4;
+        --green: #107c10;
+        --green-dark: #075f09;
+        --green-soft: #e8f4e8;
+        --blue: #3666d6;
+        --blue-soft: #eaf0ff;
+        --violet: #7456d8;
+        --violet-soft: #f0edff;
+        --red: #b42318;
+        --red-soft: #fef3f2;
+        --shadow: 0 1px 2px rgba(20, 28, 22, 0.04), 0 12px 32px rgba(20, 28, 22, 0.05);
+        --radius: 16px;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-width: 320px;
+        background: var(--bg);
+        color: var(--ink);
+        font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      button,
+      input,
+      select {
+        font: inherit;
+      }
+
+      button,
+      select {
+        cursor: pointer;
+      }
+
+      .app {
+        width: min(1540px, calc(100% - 44px));
+        margin: 0 auto;
+        padding: 34px 0 20px;
+      }
+
+      .topbar {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 24px;
+        padding: 0 2px 25px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .brand {
+        display: flex;
+        align-items: flex-start;
+        gap: 14px;
+      }
+
+      .brand-mark {
+        width: 44px;
+        height: 44px;
+        display: grid;
+        place-items: center;
+        flex: 0 0 auto;
+        border-radius: 13px;
+        color: white;
+        background: linear-gradient(145deg, #20a11e, #08720b);
+        box-shadow: 0 8px 20px rgba(16, 124, 16, 0.22);
+      }
+
+      .brand-mark svg {
+        width: 26px;
+        height: 26px;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: clamp(25px, 2.3vw, 34px);
+        line-height: 1.12;
+        letter-spacing: -0.035em;
+      }
+
+      .subtitle {
+        margin: 7px 0 0;
+        color: var(--muted);
+        font-size: 15px;
+      }
+
+      .status {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 8px;
+        color: var(--muted);
+        font-size: 13px;
+        font-weight: 700;
+        white-space: nowrap;
+      }
+
+      .status-dot {
+        width: 9px;
+        height: 9px;
+        border: 2px solid #fff;
+        border-radius: 50%;
+        background: #d09a20;
+        box-shadow: 0 0 0 3px #f4e8c6;
+      }
+
+      .status.ready .status-dot {
+        background: #36a263;
+        box-shadow: 0 0 0 3px #d8eee0;
+      }
+
+      .status.error .status-dot {
+        background: var(--red);
+        box-shadow: 0 0 0 3px #fee4e2;
+      }
+
+      .toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 22px;
+        padding: 20px 0 16px;
+      }
+
+      .filters,
+      .quick-tabs,
+      .view-switch {
+        display: flex;
+        align-items: center;
+      }
+
+      .filters {
+        flex: 1 1 auto;
+        gap: 10px;
+        min-width: 0;
+      }
+
+      .quick-tabs {
+        gap: 4px;
+      }
+
+      .control,
+      .search-box {
+        height: 48px;
+        border: 1px solid #dde1dd;
+        border-radius: 14px;
+        background: var(--surface);
+        color: #5f6761;
+        box-shadow: 0 1px 1px rgba(16, 30, 18, 0.02);
+      }
+
+      .control {
+        min-width: 174px;
+        padding: 0 39px 0 15px;
+        font-weight: 650;
+        appearance: none;
+        background-image:
+          linear-gradient(45deg, transparent 50%, #777f79 50%),
+          linear-gradient(135deg, #777f79 50%, transparent 50%);
+        background-position: calc(100% - 18px) 21px, calc(100% - 13px) 21px;
+        background-size: 5px 5px, 5px 5px;
+        background-repeat: no-repeat;
+      }
+
+      .search-box {
+        position: relative;
+        width: min(360px, 36vw);
+        min-width: 230px;
+      }
+
+      .search-box svg {
+        position: absolute;
+        top: 50%;
+        left: 15px;
+        width: 20px;
+        height: 20px;
+        color: #848c85;
+        transform: translateY(-50%);
+        pointer-events: none;
+      }
+
+      .search-box input {
+        width: 100%;
+        height: 100%;
+        border: 0;
+        outline: 0;
+        padding: 0 16px 0 45px;
+        background: transparent;
+        color: var(--ink);
+      }
+
+      .search-box:focus-within,
+      .control:focus-visible,
+      .icon-button:focus-visible,
+      .tab:focus-visible,
+      .retry-button:focus-visible {
+        border-color: var(--green);
+        box-shadow: 0 0 0 3px rgba(16, 124, 16, 0.12);
+        outline: 0;
+      }
+
+      .right-tools {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+      }
+
+      .summary-label {
+        display: flex;
+        align-items: baseline;
+        gap: 7px;
+        padding-right: 15px;
+        border-right: 1px solid var(--line);
+        color: #7d847f;
+        font-size: 12px;
+        font-weight: 750;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        white-space: nowrap;
+      }
+
+      .summary-label strong {
+        color: var(--ink);
+        font-size: 14px;
+        letter-spacing: 0;
+      }
+
+      .tab {
+        border: 0;
+        border-radius: 10px;
+        padding: 10px 12px;
+        background: transparent;
+        color: #737a75;
+        font-size: 14px;
+        font-weight: 650;
+        white-space: nowrap;
+      }
+
+      .tab:hover {
+        color: var(--ink);
+        background: var(--surface-soft);
+      }
+
+      .tab.active {
+        color: var(--green);
+        background: var(--green-soft);
+      }
+
+      .tab-count {
+        display: inline-block;
+        min-width: 1.3em;
+        margin-left: 4px;
+        color: inherit;
+        font-size: 11px;
+        font-variant-numeric: tabular-nums;
+        opacity: 0.78;
+      }
+
+      .view-switch {
+        overflow: hidden;
+        flex: 0 0 auto;
+        border: 1px solid #dde1dd;
+        border-radius: 12px;
+        background: var(--surface);
+      }
+
+      .icon-button {
+        width: 44px;
+        height: 44px;
+        display: grid;
+        place-items: center;
+        border: 0;
+        border-right: 1px solid #e3e6e3;
+        background: transparent;
+        color: #7b837d;
+      }
+
+      .icon-button:last-child {
+        border-right: 0;
+      }
+
+      .icon-button.active {
+        color: var(--ink);
+        background: #f0f2f0;
+      }
+
+      .icon-button svg {
+        width: 20px;
+        height: 20px;
+      }
+
+      .data-panel {
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        background: var(--surface);
+        box-shadow: var(--shadow);
+      }
+
+      .table-wrap {
+        overflow-x: auto;
+      }
+
+      table {
+        width: 100%;
+        min-width: 850px;
+        border-collapse: collapse;
+        table-layout: fixed;
+      }
+
+      th {
+        height: 50px;
+        padding: 0 16px;
+        color: var(--faint);
+        font-size: 12px;
+        font-weight: 700;
+        text-align: left;
+        white-space: nowrap;
+      }
+
+      th:nth-child(1) {
+        width: 70px;
+        text-align: center;
+      }
+
+      th:nth-child(2) {
+        width: 48%;
+      }
+
+      th:nth-child(3) {
+        width: 190px;
+      }
+
+      th:nth-child(4),
+      th:nth-child(5) {
+        width: 120px;
+        text-align: center;
+      }
+
+      td {
+        height: 68px;
+        padding: 0 16px;
+        border-top: 1px solid #edf0ed;
+        color: #262a27;
+        font-size: 14px;
+        white-space: nowrap;
+      }
+
+      td.center {
+        text-align: center;
+      }
+
+      tbody tr {
+        transition: background 0.16s ease;
+      }
+
+      tbody tr:hover {
+        background: #fafbfa;
+      }
+
+      .rank-cell {
+        color: #7e867f;
+        text-align: center;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .game {
+        display: flex;
+        align-items: center;
+        min-width: 0;
+        gap: 12px;
+      }
+
+      .game-art {
+        width: 42px;
+        height: 42px;
+        display: grid;
+        place-items: center;
+        flex: 0 0 auto;
+        overflow: hidden;
+        border-radius: 10px;
+        color: white;
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.15);
+      }
+
+      .art-0 { background: linear-gradient(145deg, #36584d, #101b18); }
+      .art-1 { background: linear-gradient(145deg, #c64f35, #532018); }
+      .art-2 { background: linear-gradient(145deg, #267899, #102d40); }
+      .art-3 { background: linear-gradient(145deg, #7957a8, #2d1d48); }
+      .art-4 { background: linear-gradient(145deg, #d19f2c, #5b4011); }
+      .art-5 { background: linear-gradient(145deg, #398643, #14331a); }
+      .art-6 { background: linear-gradient(145deg, #687588, #232a34); }
+      .art-7 { background: linear-gradient(145deg, #b64155, #4d1721); }
+      .art-8 { background: linear-gradient(145deg, #3595bc, #143a5e); }
+      .art-9 { background: linear-gradient(145deg, #745be2, #2f246a); }
+
+      .game-copy {
+        min-width: 0;
+      }
+
+      .game-name {
+        overflow: hidden;
+        color: #222623;
+        font-size: 15px;
+        font-weight: 720;
+        text-overflow: ellipsis;
+      }
+
+      .game-note {
+        margin-top: 3px;
+        color: #929992;
+        font-size: 12px;
+      }
+
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        border-radius: 999px;
+        padding: 7px 10px;
+        font-size: 12px;
+        font-weight: 750;
+      }
+
+      .badge::before {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: currentColor;
+        content: "";
+      }
+
+      .badge-exclusive {
+        color: var(--green-dark);
+        background: var(--green-soft);
+      }
+
+      .badge-ea {
+        color: var(--blue);
+        background: var(--blue-soft);
+      }
+
+      .badge-ubisoft {
+        color: var(--violet);
+        background: var(--violet-soft);
+      }
+
+      .check,
+      .dash {
+        font-size: 15px;
+        font-weight: 800;
+      }
+
+      .check {
+        color: #308551;
+      }
+
+      .dash {
+        color: #c2c7c3;
+      }
+
+      .panel-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 18px;
+        min-height: 55px;
+        padding: 10px 18px;
+        border-top: 1px solid var(--line);
+        color: #888f89;
+        font-size: 12px;
+      }
+
+      .legend {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 15px;
+      }
+
+      .legend span {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .legend i {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+      }
+
+      .message {
+        display: grid;
+        min-height: 320px;
+        place-items: center;
+        padding: 64px 20px;
+        color: var(--muted);
+        text-align: center;
+      }
+
+      .message strong {
+        display: block;
+        margin-bottom: 7px;
+        color: var(--ink);
+        font-size: 16px;
+      }
+
+      .message.error strong {
+        color: var(--red);
+      }
+
+      .spinner {
+        width: 30px;
+        height: 30px;
+        margin: 0 auto 16px;
+        border: 3px solid #dfe6df;
+        border-top-color: var(--green);
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+      }
+
+      .retry-button {
+        margin-top: 18px;
+        border: 1px solid var(--green);
+        border-radius: 10px;
+        padding: 9px 14px;
+        color: white;
+        background: var(--green);
+        font-weight: 700;
+      }
+
+      .card-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+        gap: 14px;
+        padding: 16px;
+      }
+
+      .game-card {
+        min-width: 0;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 16px;
+        background: #fff;
+      }
+
+      .game-card .game {
+        margin-bottom: 17px;
+      }
+
+      .card-details {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .platforms {
+        color: var(--muted);
+        font-size: 12px;
+        text-align: right;
+      }
+
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+
+      @media (max-width: 1160px) {
+        .toolbar {
+          align-items: flex-start;
+          flex-direction: column;
+        }
+
+        .right-tools {
+          width: 100%;
+          justify-content: space-between;
+        }
+
+        .quick-tabs {
+          overflow-x: auto;
+        }
+      }
+
+      @media (max-width: 760px) {
+        .app {
+          width: min(100% - 24px, 1540px);
+          padding-top: 20px;
+        }
+
+        .topbar {
+          align-items: flex-start;
+        }
+
+        .brand-mark {
+          width: 40px;
+          height: 40px;
+          border-radius: 12px;
+        }
+
+        .subtitle {
+          font-size: 14px;
+          line-height: 1.45;
+        }
+
+        .status {
+          display: none;
+        }
+
+        .filters {
+          width: 100%;
+          flex-wrap: wrap;
+        }
+
+        .control {
+          flex: 1 1 145px;
+          min-width: 140px;
+        }
+
+        .search-box {
+          order: -1;
+          width: 100%;
+          min-width: 0;
+        }
+
+        .right-tools {
+          align-items: flex-start;
+          gap: 9px;
+        }
+
+        .summary-label {
+          display: none;
+        }
+
+        .quick-tabs {
+          padding-bottom: 3px;
+        }
+
+        .tab {
+          padding: 9px 10px;
+        }
+
+        .panel-footer {
+          align-items: flex-start;
+          flex-direction: column;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          scroll-behavior: auto !important;
+          transition: none !important;
+          animation-duration: 0.01ms !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="app">
+      <header class="topbar">
+        <div class="brand">
+          <div class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M5.1 5.3C7 3.7 9.4 2.8 12 2.8s5 .9 6.9 2.5c-2.1-.5-4.5.4-6.9 2.9-2.4-2.5-4.8-3.4-6.9-2.9Zm-1.5 2c-1 1.4-1.6 3-1.6 4.7 0 5.5 4.5 10 10 10s10-4.5 10-10c0-1.7-.6-3.3-1.6-4.7-1.4-1.4-4.2-.1-7 3.2 2.6 3.2 5 6.7 5.6 8.1-1.2 1-2.6 1.7-4.2 2.1-.5-1.7-1.5-4.4-2.8-7.1-1.3 2.7-2.3 5.4-2.8 7.1-1.6-.4-3-1.1-4.2-2.1.6-1.4 3-4.9 5.6-8.1-2.8-3.3-5.6-4.6-7-3.2Z" fill="currentColor" />
+            </svg>
+          </div>
+          <div>
+            <h1>Game Pass Difference</h1>
+            <p class="subtitle">Games included in Ultimate but not in Premium.</p>
+          </div>
+        </div>
+        <div id="status" class="status" role="status">
+          <span class="status-dot"></span>
+          <span id="statusText">LOADING CATALOG</span>
+        </div>
+      </header>
+
+      <section class="toolbar" aria-label="Catalog controls">
+        <div class="filters">
+          <select id="resultSet" class="control" aria-label="Result set">
+            <option value="difference">Ultimate − Premium</option>
+            <option value="exclusive">Ultimate Exclusive</option>
+          </select>
+          <label class="search-box">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <circle cx="11" cy="11" r="7"></circle>
+              <path d="m20 20-4-4"></path>
+            </svg>
+            <input id="searchInput" type="search" placeholder="Search games" autocomplete="off" />
+          </label>
+          <select id="platformFilter" class="control" aria-label="Platform filter">
+            <option value="all">All platforms</option>
+            <option value="pc">PC</option>
+            <option value="console">Console</option>
+          </select>
+        </div>
+
+        <div class="right-tools">
+          <div class="summary-label"><strong id="resultCount">0</strong> results</div>
+          <div class="quick-tabs" role="tablist" aria-label="Classification">
+            <button class="tab active" data-category="all" role="tab" aria-selected="true">
+              All <span class="tab-count" data-count="all">0</span>
+            </button>
+            <button class="tab" data-category="Ultimate Exclusive" role="tab" aria-selected="false">
+              Exclusive <span class="tab-count" data-count="Ultimate Exclusive">0</span>
+            </button>
+            <button class="tab" data-category="EA Play" role="tab" aria-selected="false">
+              EA Play <span class="tab-count" data-count="EA Play">0</span>
+            </button>
+            <button class="tab" data-category="Ubisoft+ Classics" role="tab" aria-selected="false">
+              Ubisoft+ <span class="tab-count" data-count="Ubisoft+ Classics">0</span>
+            </button>
+          </div>
+          <div class="view-switch" aria-label="View options">
+            <button class="icon-button" data-view="grid" aria-label="Grid view" aria-pressed="false">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <rect x="3" y="3" width="7" height="7" rx="1"></rect>
+                <rect x="14" y="3" width="7" height="7" rx="1"></rect>
+                <rect x="3" y="14" width="7" height="7" rx="1"></rect>
+                <rect x="14" y="14" width="7" height="7" rx="1"></rect>
+              </svg>
+            </button>
+            <button class="icon-button active" data-view="list" aria-label="List view" aria-pressed="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <path d="M9 6h12M9 12h12M9 18h12"></path>
+                <circle cx="4" cy="6" r="1"></circle>
+                <circle cx="4" cy="12" r="1"></circle>
+                <circle cx="4" cy="18" r="1"></circle>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section class="data-panel" aria-label="Game catalog">
+        <div id="content">
+          <div class="message">
+            <div>
+              <div class="spinner" aria-hidden="true"></div>
+              <strong>Loading the catalog…</strong>
+              Reading the processed Game Pass data.
+            </div>
+          </div>
+        </div>
+        <footer class="panel-footer">
+          <div class="legend" aria-label="Classification legend">
+            <span><i style="background: #107c10"></i>Ultimate Exclusive</span>
+            <span><i style="background: #3666d6"></i>EA Play</span>
+            <span><i style="background: #7456d8"></i>Ubisoft+</span>
+          </div>
+          <span>United States catalog · PC and Console</span>
+        </footer>
+      </section>
+    </main>
+
+    <script>
+      'use strict';
+
+      const DATASETS = {
+        difference: 'data/ultimate-no-premium.csv',
+        exclusive: 'data/ultimate-exclusive.csv'
+      };
+      const EXPECTED_HEADERS = ['name', 'console', 'pc', 'category'];
+      const ALLOWED_CATEGORIES = new Set(['EA Play', 'Ubisoft+ Classics', 'Ultimate Exclusive']);
+      const state = {
+        datasets: { difference: [], exclusive: [] },
+        dataset: 'difference',
+        search: '',
+        category: 'all',
+        platform: 'all',
+        view: 'list',
+        loaded: false
+      };
+
+      const content = document.querySelector('#content');
+      const resultCount = document.querySelector('#resultCount');
+      const status = document.querySelector('#status');
+      const statusText = document.querySelector('#statusText');
+
+      function parseCsv(text) {
+        const rows = [];
+        let row = [];
+        let field = '';
+        let quoted = false;
+        const source = text.replace(/^\uFEFF/, '');
+
+        for (let index = 0; index < source.length; index += 1) {
+          const character = source[index];
+
+          if (quoted) {
+            if (character === '"' && source[index + 1] === '"') {
+              field += '"';
+              index += 1;
+            } else if (character === '"') {
+              quoted = false;
+            } else {
+              field += character;
+            }
+          } else if (character === '"') {
+            quoted = true;
+          } else if (character === ',') {
+            row.push(field);
+            field = '';
+          } else if (character === '\n') {
+            row.push(field.replace(/\r$/, ''));
+            if (row.some(function (value) { return value !== ''; })) {
+              rows.push(row);
+            }
+            row = [];
+            field = '';
+          } else {
+            field += character;
+          }
+        }
+
+        if (quoted) {
+          throw new Error('CSV contains an unterminated quoted value.');
+        }
+
+        if (field !== '' || row.length > 0) {
+          row.push(field.replace(/\r$/, ''));
+          rows.push(row);
+        }
+
+        return rows;
+      }
+
+      function parseBoolean(value, rowNumber, column) {
+        if (value === 'true') return true;
+        if (value === 'false') return false;
+        throw new Error('Invalid ' + column + ' value on CSV row ' + rowNumber + '.');
+      }
+
+      function parseCatalog(text) {
+        const rows = parseCsv(text);
+        if (rows.length < 2) {
+          throw new Error('The catalog is empty.');
+        }
+
+        const headers = rows[0];
+        if (
+          headers.length !== EXPECTED_HEADERS.length ||
+          headers.some(function (header, index) { return header !== EXPECTED_HEADERS[index]; })
+        ) {
+          throw new Error('The catalog has an unexpected header.');
+        }
+
+        return rows.slice(1).map(function (row, index) {
+          const rowNumber = index + 2;
+          if (row.length !== EXPECTED_HEADERS.length || !row[0]) {
+            throw new Error('Invalid CSV row ' + rowNumber + '.');
+          }
+          if (!ALLOWED_CATEGORIES.has(row[3])) {
+            throw new Error('Invalid category on CSV row ' + rowNumber + '.');
+          }
+          return {
+            name: row[0],
+            console: parseBoolean(row[1], rowNumber, 'console'),
+            pc: parseBoolean(row[2], rowNumber, 'pc'),
+            category: row[3]
+          };
+        });
+      }
+
+      async function fetchDataset(path) {
+        const response = await fetch(path, { cache: 'no-cache' });
+        if (!response.ok) {
+          throw new Error('Could not load ' + path + ' (' + response.status + ').');
+        }
+        return parseCatalog(await response.text());
+      }
+
+      async function loadCatalogs() {
+        setStatus('loading');
+        renderMessage('loading');
+        try {
+          const results = await Promise.all([
+            fetchDataset(DATASETS.difference),
+            fetchDataset(DATASETS.exclusive)
+          ]);
+          state.datasets.difference = results[0];
+          state.datasets.exclusive = results[1];
+          state.loaded = true;
+          setStatus('ready');
+          render();
+        } catch (error) {
+          state.loaded = false;
+          setStatus('error');
+          renderMessage('error', error instanceof Error ? error.message : String(error));
+          console.error(error);
+        }
+      }
+
+      function setStatus(type) {
+        status.classList.remove('ready', 'error');
+        if (type === 'ready') {
+          status.classList.add('ready');
+          statusText.textContent = 'CATALOG READY';
+        } else if (type === 'error') {
+          status.classList.add('error');
+          statusText.textContent = 'CATALOG UNAVAILABLE';
+        } else {
+          statusText.textContent = 'LOADING CATALOG';
+        }
+      }
+
+      function renderMessage(type, detail) {
+        content.replaceChildren();
+        const wrapper = document.createElement('div');
+        wrapper.className = 'message' + (type === 'error' ? ' error' : '');
+        const inner = document.createElement('div');
+
+        if (type === 'loading') {
+          const spinner = document.createElement('div');
+          spinner.className = 'spinner';
+          spinner.setAttribute('aria-hidden', 'true');
+          inner.append(spinner);
+        }
+
+        const title = document.createElement('strong');
+        title.textContent = type === 'error' ? 'The catalog could not be loaded.' : 'Loading the catalog…';
+        inner.append(title);
+        inner.append(document.createTextNode(
+          type === 'error' ? (detail || 'Please try again.') : 'Reading the processed Game Pass data.'
+        ));
+
+        if (type === 'error') {
+          const retry = document.createElement('button');
+          retry.type = 'button';
+          retry.className = 'retry-button';
+          retry.textContent = 'Try again';
+          retry.addEventListener('click', loadCatalogs);
+          inner.append(document.createElement('br'), retry);
+        }
+
+        wrapper.append(inner);
+        content.append(wrapper);
+        resultCount.textContent = '0';
+      }
+
+      function currentDataset() {
+        return state.datasets[state.dataset];
+      }
+
+      function categoryCounts(items) {
+        const counts = {
+          all: items.length,
+          'Ultimate Exclusive': 0,
+          'EA Play': 0,
+          'Ubisoft+ Classics': 0
+        };
+        items.forEach(function (game) {
+          counts[game.category] += 1;
+        });
+        return counts;
+      }
+
+      function filteredGames() {
+        return currentDataset().filter(function (game) {
+          const searchMatch = game.name.toLocaleLowerCase('en-US').includes(state.search);
+          const categoryMatch = state.category === 'all' || game.category === state.category;
+          const platformMatch = state.platform === 'all' || game[state.platform];
+          return searchMatch && categoryMatch && platformMatch;
+        });
+      }
+
+      function initials(name) {
+        const words = name
+          .replace(/[™®©:()\[\]]/g, ' ')
+          .split(/\s+/)
+          .filter(Boolean);
+        if (words.length === 0) return 'GP';
+        if (words.length === 1) return words[0].slice(0, 3).toUpperCase();
+        return (words[0][0] + words[1][0] + (words[2] ? words[2][0] : '')).toUpperCase();
+      }
+
+      function artIndex(name) {
+        let hash = 0;
+        for (let index = 0; index < name.length; index += 1) {
+          hash = ((hash << 5) - hash + name.charCodeAt(index)) | 0;
+        }
+        return Math.abs(hash) % 10;
+      }
+
+      function createArt(game) {
+        const art = document.createElement('div');
+        art.className = 'game-art art-' + artIndex(game.name);
+        art.textContent = initials(game.name);
+        art.setAttribute('aria-hidden', 'true');
+        return art;
+      }
+
+      function createGameIdentity(game) {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'game';
+        wrapper.append(createArt(game));
+
+        const copy = document.createElement('div');
+        copy.className = 'game-copy';
+        const name = document.createElement('div');
+        name.className = 'game-name';
+        name.textContent = game.name;
+        name.title = game.name;
+        const note = document.createElement('div');
+        note.className = 'game-note';
+        note.textContent = state.dataset === 'exclusive' ? 'Ultimate Exclusive' : 'Ultimate − Premium';
+        copy.append(name, note);
+        wrapper.append(copy);
+        return wrapper;
+      }
+
+      function createBadge(category) {
+        const badge = document.createElement('span');
+        badge.className =
+          'badge ' +
+          (category === 'Ultimate Exclusive'
+            ? 'badge-exclusive'
+            : category === 'EA Play'
+              ? 'badge-ea'
+              : 'badge-ubisoft');
+        badge.textContent = category === 'Ubisoft+ Classics' ? 'Ubisoft+' : category;
+        return badge;
+      }
+
+      function createAvailability(available, platform) {
+        const element = document.createElement('span');
+        element.className = available ? 'check' : 'dash';
+        element.textContent = available ? '✓' : '—';
+        element.setAttribute('aria-label', available ? 'Available on ' + platform : 'Not available on ' + platform);
+        return element;
+      }
+
+      function renderList(items) {
+        const wrap = document.createElement('div');
+        wrap.className = 'table-wrap';
+        const table = document.createElement('table');
+        const thead = document.createElement('thead');
+        const headerRow = document.createElement('tr');
+        ['#', 'Game', 'Classification', 'PC', 'Console'].forEach(function (label) {
+          const th = document.createElement('th');
+          th.scope = 'col';
+          th.textContent = label;
+          headerRow.append(th);
+        });
+        thead.append(headerRow);
+
+        const tbody = document.createElement('tbody');
+        items.forEach(function (game, index) {
+          const row = document.createElement('tr');
+          const rank = document.createElement('td');
+          rank.className = 'rank-cell';
+          rank.textContent = String(index + 1);
+          const identity = document.createElement('td');
+          identity.append(createGameIdentity(game));
+          const classification = document.createElement('td');
+          classification.append(createBadge(game.category));
+          const pc = document.createElement('td');
+          pc.className = 'center';
+          pc.append(createAvailability(game.pc, 'PC'));
+          const consoleCell = document.createElement('td');
+          consoleCell.className = 'center';
+          consoleCell.append(createAvailability(game.console, 'Console'));
+          row.append(rank, identity, classification, pc, consoleCell);
+          tbody.append(row);
+        });
+
+        table.append(thead, tbody);
+        wrap.append(table);
+        content.replaceChildren(wrap);
+      }
+
+      function renderGrid(items) {
+        const grid = document.createElement('div');
+        grid.className = 'card-grid';
+        items.forEach(function (game) {
+          const card = document.createElement('article');
+          card.className = 'game-card';
+          card.append(createGameIdentity(game));
+          const details = document.createElement('div');
+          details.className = 'card-details';
+          details.append(createBadge(game.category));
+          const platforms = document.createElement('span');
+          platforms.className = 'platforms';
+          const labels = [];
+          if (game.pc) labels.push('PC');
+          if (game.console) labels.push('Console');
+          platforms.textContent = labels.join(' · ');
+          details.append(platforms);
+          card.append(details);
+          grid.append(card);
+        });
+        content.replaceChildren(grid);
+      }
+
+      function updateCounts() {
+        const counts = categoryCounts(currentDataset());
+        document.querySelectorAll('[data-count]').forEach(function (element) {
+          element.textContent = String(counts[element.dataset.count] || 0);
+        });
+      }
+
+      function render() {
+        if (!state.loaded) return;
+        updateCounts();
+        const items = filteredGames();
+        resultCount.textContent = String(items.length);
+        if (items.length === 0) {
+          content.replaceChildren();
+          const empty = document.createElement('div');
+          empty.className = 'message';
+          const inner = document.createElement('div');
+          const title = document.createElement('strong');
+          title.textContent = 'No games found.';
+          inner.append(title, document.createTextNode('Try changing the search or filters.'));
+          empty.append(inner);
+          content.append(empty);
+          return;
+        }
+        if (state.view === 'list') {
+          renderList(items);
+        } else {
+          renderGrid(items);
+        }
+      }
+
+      document.querySelector('#searchInput').addEventListener('input', function (event) {
+        state.search = event.target.value.trim().toLocaleLowerCase('en-US');
+        render();
+      });
+
+      document.querySelector('#platformFilter').addEventListener('change', function (event) {
+        state.platform = event.target.value;
+        render();
+      });
+
+      document.querySelector('#resultSet').addEventListener('change', function (event) {
+        state.dataset = event.target.value;
+        state.category = 'all';
+        document.querySelectorAll('.tab').forEach(function (tab) {
+          const active = tab.dataset.category === 'all';
+          tab.classList.toggle('active', active);
+          tab.setAttribute('aria-selected', String(active));
+        });
+        render();
+      });
+
+      document.querySelectorAll('.tab').forEach(function (tab) {
+        tab.addEventListener('click', function () {
+          state.category = tab.dataset.category;
+          document.querySelectorAll('.tab').forEach(function (item) {
+            const active = item === tab;
+            item.classList.toggle('active', active);
+            item.setAttribute('aria-selected', String(active));
+          });
+          render();
+        });
+      });
+
+      document.querySelectorAll('[data-view]').forEach(function (button) {
+        button.addEventListener('click', function () {
+          state.view = button.dataset.view;
+          document.querySelectorAll('[data-view]').forEach(function (item) {
+            const active = item === button;
+            item.classList.toggle('active', active);
+            item.setAttribute('aria-pressed', String(active));
+          });
+          render();
+        });
+      });
+
+      loadCatalogs();
+    </script>
+  </body>
 </html>

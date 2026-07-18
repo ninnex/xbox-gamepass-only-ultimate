@@ -1,6 +1,6 @@
 # Xbox Game Pass Ultimate Clean List
 
-This repository contains the validated Phase B Kotlin/JVM catalog generator and the Phase C GitHub Actions automation built on top of it. Phase C has passed its manual success, change, and controlled-failure tests; validation of the first scheduled run is still pending.
+This repository contains the validated Phase B Kotlin/JVM catalog generator, the Phase C GitHub Actions automation, and the Phase D web view that consumes the processed catalog files. Phase C has passed its manual success, change, and controlled-failure tests; validation of the first scheduled run is still pending.
 
 ## Project phases
 
@@ -9,7 +9,7 @@ This repository contains the validated Phase B Kotlin/JVM catalog generator and 
 | A | JavaScript catalog process run from the browser console | Complete |
 | B | Validated Kotlin/JVM catalog generator | Complete |
 | C | GitHub Actions automation and GitHub Pages deployment | Implemented and manually validated; first scheduled run pending |
-| D | Web view for the generated catalog | Not started |
+| D | Web view for the generated catalog | Implemented and locally validated; publish through the existing workflow |
 
 ## Requirements
 
@@ -55,6 +55,17 @@ If a test, generation, file-set validation, safe push, or artifact step fails, n
 
 Published site: <https://ninnex.github.io/xbox-gamepass-only-ultimate/>
 
+## Phase D web view
+
+The static view in `index.html` reads the two processed files directly:
+
+- `data/ultimate-no-premium.csv` for the complete Ultimate minus Premium result.
+- `data/ultimate-exclusive.csv` for the Ultimate Exclusive result.
+
+It provides English search, platform and classification filters, category counts, list and grid layouts, responsive mobile behavior, and explicit loading and error states. It does not repeat the catalog comparison or classification rules in the browser.
+
+The first Phase D version intentionally does not display the data update date. View changes do not have a dedicated `push` trigger. To publish a view change immediately, run **Update catalogs and deploy Pages** manually from GitHub Actions after committing it to `main`; otherwise the next scheduled catalog run will deploy the current `index.html`.
+
 ## Output contract
 
 | File | Columns | Purpose |
@@ -75,3 +86,4 @@ All files use UTF-8 with BOM, CRLF line endings, lowercase `true`/`false` values
 - Platforms: Windows PC, Xbox One, and Xbox Series X|S
 - Name matching: exact `ProductTitle`; no title normalization
 - Category priority: `EA Play`, then `Ubisoft+ Classics`, then `Ultimate Exclusive`
+
