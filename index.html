@@ -7,12 +7,12 @@
       name="description"
       content="Browse games included in Xbox Game Pass Ultimate but not in Premium."
     />
-    <title>Game Pass Ultimate Games</title>
+    <title>Game Pass Ultimate</title>
     <script>
       (function () {
         const savedTheme = localStorage.getItem('theme');
         document.documentElement.dataset.theme =
-          savedTheme === 'dark' || savedTheme === 'light' ? savedTheme : 'light';
+          savedTheme === 'dark' || savedTheme === 'light' ? savedTheme : 'dark';
       })();
     </script>
     <style>
@@ -922,7 +922,7 @@
             />
           </div>
           <div>
-            <h1>Game Pass Ultimate Games</h1>
+            <h1>Game Pass Ultimate</h1>
             <p class="subtitle">Games exclusive to Ultimate, excluding Premium.</p>
           </div>
         </div>
@@ -1472,7 +1472,7 @@
         applyTheme(nextTheme);
       });
 
-      applyTheme(document.documentElement.dataset.theme || 'light');
+      applyTheme(document.documentElement.dataset.theme || 'dark');
       loadCatalogs();
     </script>
   </body>
