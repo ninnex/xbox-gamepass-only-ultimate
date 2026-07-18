@@ -1,0 +1,199 @@
+name: Update catalogs and deploy Pages
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "30 3 * * *"
+      timezone: "America/New_York"
+
+concurrency:
+  group: xbox-gamepass-catalog-update
+  cancel-in-progress: false
+
+jobs:
+  generate:
+    name: Generate and validate catalogs
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      contents: write
+
+    steps:
+      - name: Apply random scheduled delay
+        if: github.event_name == 'schedule'
+        shell: bash
+        run: |
+          set -euo pipefail
+          delay=$(( $(od -An -N4 -tu4 /dev/urandom) % 3600 ))
+          echo "Scheduled delay: ${delay} seconds"
+          echo "Delay started at: $(TZ=America/New_York date --iso-8601=seconds)"
+          sleep "$delay"
+          echo "Generation starting at: $(TZ=America/New_York date --iso-8601=seconds)"
+
+      - name: Check out latest main
+        uses: actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Set up JDK 25 and Maven cache
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "25"
+          cache: maven
+
+      - name: Run tests
+        run: ./mvnw --batch-mode verify
+
+      - name: Generate catalogs
+        run: ./mvnw --batch-mode exec:java
+
+      - name: Validate generated files and print counts
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          source_files=(
+            data/ultimate.csv
+            data/premium.csv
+            data/ea-play.csv
+            data/ubisoft-plus.csv
+          )
+          processed_files=(
+            data/ultimate-no-premium.csv
+            data/ultimate-exclusive.csv
+          )
+          expected_files=("${source_files[@]}" "${processed_files[@]}")
+
+          mapfile -t actual_files < <(find data -maxdepth 1 -type f -name '*.csv' -print | LC_ALL=C sort)
+          mapfile -t sorted_expected < <(printf '%s\n' "${expected_files[@]}" | LC_ALL=C sort)
+
+          if [[ "$(printf '%s\n' "${actual_files[@]}")" != "$(printf '%s\n' "${sorted_expected[@]}")" ]]; then
+            echo 'Expected exactly these CSV files:' >&2
+            printf '  %s\n' "${sorted_expected[@]}" >&2
+            echo 'Found:' >&2
+            printf '  %s\n' "${actual_files[@]}" >&2
+            exit 1
+          fi
+
+          for file in "${source_files[@]}"; do
+            [[ -s "$file" ]] || { echo "$file is empty" >&2; exit 1; }
+            header=$(head -n 1 "$file" | sed $'s/^\xEF\xBB\xBF//; s/\r$//')
+            [[ "$header" == 'name,console,pc' ]] || {
+              echo "$file has an invalid header: $header" >&2
+              exit 1
+            }
+          done
+
+          for file in "${processed_files[@]}"; do
+            [[ -s "$file" ]] || { echo "$file is empty" >&2; exit 1; }
+            header=$(head -n 1 "$file" | sed $'s/^\xEF\xBB\xBF//; s/\r$//')
+            [[ "$header" == 'name,console,pc,category' ]] || {
+              echo "$file has an invalid header: $header" >&2
+              exit 1
+            }
+          done
+
+          echo 'Generated catalog counts:'
+          for file in "${expected_files[@]}"; do
+            rows=$(( $(wc -l < "$file") - 1 ))
+            printf '  %s: %d games\n' "$file" "$rows"
+          done
+
+          echo 'Data change summary:'
+          git diff --stat -- data/ || true
+
+      - name: Commit and push valid catalog changes
+        id: publish_data
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          files=(
+            data/ultimate.csv
+            data/premium.csv
+            data/ea-play.csv
+            data/ubisoft-plus.csv
+            data/ultimate-no-premium.csv
+            data/ultimate-exclusive.csv
+          )
+
+          if git diff --quiet -- "${files[@]}"; then
+            echo 'No catalog changes detected; no commit will be created.'
+            git fetch origin main
+            git merge --ff-only origin/main
+            echo 'changed=false' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- "${files[@]}"
+
+          mapfile -t staged_files < <(git diff --cached --name-only | LC_ALL=C sort)
+          [[ ${#staged_files[@]} -gt 0 ]] || {
+            echo 'No catalog changes remained after staging.' >&2
+            exit 1
+          }
+
+          for staged_file in "${staged_files[@]}"; do
+            allowed=false
+            for expected_file in "${files[@]}"; do
+              if [[ "$staged_file" == "$expected_file" ]]; then
+                allowed=true
+                break
+              fi
+            done
+            [[ "$allowed" == true ]] || {
+              echo "Refusing to commit unexpected file: $staged_file" >&2
+              exit 1
+            }
+          done
+
+          git commit -m 'chore(data): update Xbox Game Pass catalogs'
+          git fetch origin main
+          git rebase origin/main
+          git push origin HEAD:main
+          git fetch origin main
+
+          [[ "$(git rev-parse HEAD)" == "$(git rev-parse origin/main)" ]] || {
+            echo 'Remote main does not match the generated commit.' >&2
+            exit 1
+          }
+
+          echo 'changed=true' >> "$GITHUB_OUTPUT"
+
+      - name: Prepare clean Pages artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf build/pages
+          mkdir -p build/pages/data
+          cp index.html build/pages/index.html
+          cp data/*.csv build/pages/data/
+
+          test "$(find build/pages -type f | wc -l)" -eq 7
+          test -f build/pages/index.html
+          test "$(find build/pages/data -maxdepth 1 -type f -name '*.csv' | wc -l)" -eq 6
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: build/pages
+
+  deploy:
+    name: Deploy GitHub Pages
+    needs: generate
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
