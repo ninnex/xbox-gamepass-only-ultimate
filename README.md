@@ -1,6 +1,6 @@
 # Xbox Game Pass Ultimate Clean List
 
-This repository currently contains Phase B: a Kotlin/JVM console generator that reproduces the validated Phase A Xbox Game Pass catalog process. GitHub Actions automation belongs to Phase C and is intentionally not included yet.
+This repository contains the validated Phase B Kotlin/JVM catalog generator and the Phase C GitHub Actions automation built on top of it. Phase C has passed its manual success, change, and controlled-failure tests; validation of the first scheduled run is still pending.
 
 ## Project phases
 
@@ -8,7 +8,7 @@ This repository currently contains Phase B: a Kotlin/JVM console generator that 
 | --- | --- | --- |
 | A | JavaScript catalog process run from the browser console | Complete |
 | B | Validated Kotlin/JVM catalog generator | Complete |
-| C | GitHub Actions automation | Pending |
+| C | GitHub Actions automation and GitHub Pages deployment | Implemented and manually validated; first scheduled run pending |
 | D | Web view for the generated catalog | Not started |
 
 ## Requirements
@@ -39,6 +39,21 @@ The default output directory is `data/`. A different output directory can be sup
 ```
 
 The program first obtains and validates every catalog and every product title. It then stages and verifies the full set before replacing any published CSV. ICU4J supplies the `en-US` collation used to reproduce Phase A JavaScript ordering.
+
+## GitHub Actions automation
+
+The workflow at `.github/workflows/update-catalogs-and-pages.yml` can be started manually and is scheduled once a day at 3:30 a.m. in `America/New_York`. Scheduled runs add a random delay of 0 to 3,599 seconds; manual runs start immediately.
+
+Each run:
+
+1. Prepares JDK 25 and runs the automated tests.
+2. Generates and validates exactly the six allowed CSV files.
+3. Creates a `github-actions[bot]` commit only when valid data changes.
+4. Deploys a clean artifact containing `index.html` and `data/` to GitHub Pages.
+
+If a test, generation, file-set validation, safe push, or artifact step fails, no new content is deployed. The workflow never uses a personal token or force push.
+
+Published site: <https://ninnex.github.io/xbox-gamepass-only-ultimate/>
 
 ## Output contract
 
