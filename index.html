@@ -437,6 +437,10 @@
         font-size: 12px;
       }
 
+      .badge.mobile-category {
+        display: none;
+      }
+
       .badge {
         display: inline-flex;
         align-items: center;
@@ -668,6 +672,106 @@
         .panel-footer {
           align-items: flex-start;
           flex-direction: column;
+        }
+      }
+
+      @media (max-width: 600px) {
+        .table-wrap {
+          overflow-x: hidden;
+        }
+
+        table {
+          min-width: 0;
+          table-layout: fixed;
+        }
+
+        th:nth-child(n + 3),
+        td:nth-child(n + 3) {
+          display: none;
+        }
+
+        th {
+          height: 46px;
+        }
+
+        th:nth-child(1) {
+          width: 44px;
+          padding: 0 6px;
+        }
+
+        th:nth-child(2) {
+          width: auto;
+          padding: 0 12px 0 4px;
+        }
+
+        td {
+          height: 76px;
+        }
+
+        td:nth-child(1) {
+          width: 44px;
+          padding: 0 6px;
+        }
+
+        td:nth-child(2) {
+          width: auto;
+          padding: 7px 12px 7px 4px;
+          white-space: normal;
+        }
+
+        .game {
+          gap: 10px;
+        }
+
+        .game-art {
+          width: 44px;
+          height: 44px;
+        }
+
+        .game-copy {
+          overflow: hidden;
+        }
+
+        .game-meta {
+          display: flex;
+          align-items: center;
+          min-width: 0;
+          gap: 6px;
+          margin-top: 2px;
+        }
+
+        .game-name {
+          display: -webkit-box;
+          overflow: hidden;
+          font-size: 14px;
+          line-height: 1.25;
+          white-space: normal;
+          text-overflow: clip;
+          -webkit-box-orient: vertical;
+          -webkit-line-clamp: 2;
+        }
+
+        .game-note {
+          overflow: hidden;
+          flex: 0 1 auto;
+          margin-top: 0;
+          font-size: 11px;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .badge.mobile-category {
+          display: inline-flex;
+          flex: 0 0 auto;
+          gap: 4px;
+          padding: 3px 6px;
+          font-size: 9px;
+          line-height: 1;
+        }
+
+        .badge.mobile-category::before {
+          width: 5px;
+          height: 5px;
         }
       }
 
@@ -1031,7 +1135,19 @@
         const note = document.createElement('div');
         note.className = 'game-note';
         note.textContent = state.dataset === 'exclusive' ? 'Ultimate Exclusive' : 'Ultimate − Premium';
-        copy.append(name, note);
+        const meta = document.createElement('div');
+        meta.className = 'game-meta';
+        const category = createBadge(game.category);
+        category.classList.add('mobile-category');
+        category.textContent =
+          game.category === 'Ultimate Exclusive'
+            ? 'Exclusive'
+            : game.category === 'Ubisoft+ Classics'
+              ? 'Ubisoft+'
+              : 'EA Play';
+        category.setAttribute('aria-label', game.category);
+        meta.append(note, category);
+        copy.append(name, meta);
         wrapper.append(copy);
         return wrapper;
       }
