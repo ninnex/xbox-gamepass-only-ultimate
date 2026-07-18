@@ -1,6 +1,15 @@
 # Xbox Game Pass Ultimate Clean List
 
-This repository currently contains Stage 1B-A: a Kotlin/JVM console generator that reproduces the validated Stage 1A Xbox Game Pass catalog process. GitHub Actions automation belongs to Stage 1B-B and is intentionally not included yet.
+This repository currently contains Phase B: a Kotlin/JVM console generator that reproduces the validated Phase A Xbox Game Pass catalog process. GitHub Actions automation belongs to Phase C and is intentionally not included yet.
+
+## Project phases
+
+| Phase | Scope | Status |
+| --- | --- | --- |
+| A | JavaScript catalog process run from the browser console | Complete |
+| B | Validated Kotlin/JVM catalog generator | Complete |
+| C | GitHub Actions automation | Pending |
+| D | Web view for the generated catalog | Not started |
 
 ## Requirements
 
@@ -29,7 +38,7 @@ The default output directory is `data/`. A different output directory can be sup
 ./mvnw --batch-mode exec:java -Dexec.args="build/generated-data"
 ```
 
-The program first obtains and validates every catalog and every product title. It then stages and verifies the full set before replacing any published CSV. ICU4J supplies the `en-US` collation used to reproduce Stage 1A JavaScript ordering.
+The program first obtains and validates every catalog and every product title. It then stages and verifies the full set before replacing any published CSV. ICU4J supplies the `en-US` collation used to reproduce Phase A JavaScript ordering.
 
 ## Output contract
 

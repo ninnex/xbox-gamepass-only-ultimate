@@ -49,7 +49,7 @@ class XboxClient(
         }
         check(ids.isNotEmpty()) { "$catalogName ${source.platform.logName()} returned no games." }
 
-        println("[Stage 1B-A] $catalogName ${source.platform.logName()}: ${ids.size} product IDs.")
+        println("[Phase B] $catalogName ${source.platform.logName()}: ${ids.size} product IDs.")
         return PlatformProductIds(source.platform, ids.toList())
     }
 
@@ -57,7 +57,7 @@ class XboxClient(
         val uniqueIds = productIds.mapTo(linkedSetOf()) { it.uppercase(Locale.ROOT) }.toList()
         val batches = uniqueIds.chunked(AppConfig.PRODUCT_BATCH_SIZE)
         println(
-            "[Stage 1B-A] Resolving ${uniqueIds.size} unique products in ${batches.size} batches.",
+            "[Phase B] Resolving ${uniqueIds.size} unique products in ${batches.size} batches.",
         )
 
         val productNames = linkedMapOf<String, String>()
@@ -68,7 +68,7 @@ class XboxClient(
         var missingIds = uniqueIds.filterNot(productNames::containsKey)
         if (missingIds.isNotEmpty()) {
             System.err.println(
-                "[Stage 1B-A] Retrying ${missingIds.size} products that were not resolved.",
+                "[Phase B] Retrying ${missingIds.size} products that were not resolved.",
             )
             loadBatches(missingIds.chunked(AppConfig.PRODUCT_BATCH_SIZE), retry = true)
                 .flatten()
