@@ -97,6 +97,10 @@
         box-sizing: border-box;
       }
 
+      [hidden] {
+        display: none !important;
+      }
+
       body {
         margin: 0;
         min-width: 320px;
@@ -161,6 +165,21 @@
         font-size: clamp(25px, 2.3vw, 34px);
         line-height: 1.12;
         letter-spacing: -0.035em;
+      }
+
+      .title-line {
+        display: flex;
+        align-items: baseline;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .author-credit {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 500;
+        letter-spacing: 0;
+        white-space: nowrap;
       }
 
       .subtitle {
@@ -922,7 +941,10 @@
             />
           </div>
           <div>
-            <h1>Game Pass Ultimate</h1>
+            <div class="title-line">
+              <h1>Game Pass Ultimate</h1>
+              <span class="author-credit">by ninnex</span>
+            </div>
             <p class="subtitle">Games exclusive to Ultimate, excluding Premium.</p>
           </div>
         </div>
@@ -952,8 +974,10 @@
       <section class="toolbar" aria-label="Catalog controls">
         <div class="filters">
           <select id="resultSet" class="control" aria-label="Result set">
-            <option value="difference">Ultimate − Premium</option>
+            <option value="difference">Ultimate not Premium</option>
             <option value="exclusive">Ultimate Exclusive</option>
+            <option value="ultimate">Ultimate</option>
+            <option value="premium">Premium</option>
           </select>
           <label class="search-box">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
@@ -1032,12 +1056,21 @@
 
       const DATASETS = {
         difference: 'data/ultimate-no-premium.csv',
-        exclusive: 'data/ultimate-exclusive.csv'
+        exclusive: 'data/ultimate-exclusive.csv',
+        ultimate: 'data/ultimate.csv',
+        premium: 'data/premium.csv'
       };
-      const EXPECTED_HEADERS = ['name', 'console', 'pc', 'category'];
+      const DATASET_LABELS = {
+        difference: 'Ultimate not Premium',
+        exclusive: 'Ultimate Exclusive',
+        ultimate: 'Ultimate',
+        premium: 'Premium'
+      };
+      const BASE_HEADERS = ['name', 'console', 'pc'];
+      const PROCESSED_HEADERS = [...BASE_HEADERS, 'category'];
       const ALLOWED_CATEGORIES = new Set(['EA Play', 'Ubisoft+ Classics', 'Ultimate Exclusive']);
       const state = {
-        datasets: { difference: [], exclusive: [] },
+        datasets: { difference: [], exclusive: [], ultimate: [], premium: [] },
         dataset: 'difference',
         search: '',
         category: 'all',
@@ -1050,6 +1083,8 @@
       const resultCount = document.querySelector('#resultCount');
       const status = document.querySelector('#status');
       const statusText = document.querySelector('#statusText');
+      const quickTabs = document.querySelector('.quick-tabs');
+      const legend = document.querySelector('.legend');
 
       function parseCsv(text) {
         const rows = [];
@@ -1112,26 +1147,28 @@
         }
 
         const headers = rows[0];
+        const hasCategory = headers.length === PROCESSED_HEADERS.length;
+        const expectedHeaders = hasCategory ? PROCESSED_HEADERS : BASE_HEADERS;
         if (
-          headers.length !== EXPECTED_HEADERS.length ||
-          headers.some(function (header, index) { return header !== EXPECTED_HEADERS[index]; })
+          headers.length !== expectedHeaders.length ||
+          headers.some(function (header, index) { return header !== expectedHeaders[index]; })
         ) {
           throw new Error('The catalog has an unexpected header.');
         }
 
         return rows.slice(1).map(function (row, index) {
           const rowNumber = index + 2;
-          if (row.length !== EXPECTED_HEADERS.length || !row[0]) {
+          if (row.length !== expectedHeaders.length || !row[0]) {
             throw new Error('Invalid CSV row ' + rowNumber + '.');
           }
-          if (!ALLOWED_CATEGORIES.has(row[3])) {
+          if (hasCategory && !ALLOWED_CATEGORIES.has(row[3])) {
             throw new Error('Invalid category on CSV row ' + rowNumber + '.');
           }
           return {
             name: row[0],
             console: parseBoolean(row[1], rowNumber, 'console'),
             pc: parseBoolean(row[2], rowNumber, 'pc'),
-            category: row[3]
+            category: hasCategory ? row[3] : null
           };
         });
       }
@@ -1148,12 +1185,13 @@
         setStatus('loading');
         renderMessage('loading');
         try {
-          const results = await Promise.all([
-            fetchDataset(DATASETS.difference),
-            fetchDataset(DATASETS.exclusive)
-          ]);
-          state.datasets.difference = results[0];
-          state.datasets.exclusive = results[1];
+          const entries = Object.entries(DATASETS);
+          const results = await Promise.all(entries.map(function (entry) {
+            return fetchDataset(entry[1]);
+          }));
+          entries.forEach(function (entry, index) {
+            state.datasets[entry[0]] = results[index];
+          });
           state.loaded = true;
           setStatus('ready');
           render();
@@ -1224,7 +1262,7 @@
           'Ubisoft+ Classics': 0
         };
         items.forEach(function (game) {
-          counts[game.category] += 1;
+          if (game.category) counts[game.category] += 1;
         });
         return counts;
       }
@@ -1277,19 +1315,22 @@
         name.title = game.name;
         const note = document.createElement('div');
         note.className = 'game-note';
-        note.textContent = state.dataset === 'exclusive' ? 'Ultimate Exclusive' : 'Ultimate − Premium';
+        note.textContent = DATASET_LABELS[state.dataset];
         const meta = document.createElement('div');
         meta.className = 'game-meta';
-        const category = createBadge(game.category);
-        category.classList.add('mobile-category');
-        category.textContent =
-          game.category === 'Ultimate Exclusive'
-            ? 'Exclusive'
-            : game.category === 'Ubisoft+ Classics'
-              ? 'Ubisoft+'
-              : 'EA Play';
-        category.setAttribute('aria-label', game.category);
-        meta.append(note, category);
+        meta.append(note);
+        if (game.category) {
+          const category = createBadge(game.category);
+          category.classList.add('mobile-category');
+          category.textContent =
+            game.category === 'Ultimate Exclusive'
+              ? 'Exclusive'
+              : game.category === 'Ubisoft+ Classics'
+                ? 'Ubisoft+'
+                : 'EA Play';
+          category.setAttribute('aria-label', game.category);
+          meta.append(category);
+        }
         copy.append(name, meta);
         wrapper.append(copy);
         return wrapper;
@@ -1317,12 +1358,16 @@
       }
 
       function renderList(items) {
+        const showClassification = items.some(function (game) { return Boolean(game.category); });
         const wrap = document.createElement('div');
         wrap.className = 'table-wrap';
         const table = document.createElement('table');
         const thead = document.createElement('thead');
         const headerRow = document.createElement('tr');
-        ['#', 'Game', 'Classification', 'PC', 'Console'].forEach(function (label) {
+        const headers = showClassification
+          ? ['#', 'Game', 'Classification', 'PC', 'Console']
+          : ['#', 'Game', 'PC', 'Console'];
+        headers.forEach(function (label) {
           const th = document.createElement('th');
           th.scope = 'col';
           th.textContent = label;
@@ -1339,14 +1384,16 @@
           const identity = document.createElement('td');
           identity.append(createGameIdentity(game));
           const classification = document.createElement('td');
-          classification.append(createBadge(game.category));
+          if (game.category) classification.append(createBadge(game.category));
           const pc = document.createElement('td');
           pc.className = 'center';
           pc.append(createAvailability(game.pc, 'PC'));
           const consoleCell = document.createElement('td');
           consoleCell.className = 'center';
           consoleCell.append(createAvailability(game.console, 'Console'));
-          row.append(rank, identity, classification, pc, consoleCell);
+          row.append(rank, identity);
+          if (showClassification) row.append(classification);
+          row.append(pc, consoleCell);
           tbody.append(row);
         });
 
@@ -1364,7 +1411,7 @@
           card.append(createGameIdentity(game));
           const details = document.createElement('div');
           details.className = 'card-details';
-          details.append(createBadge(game.category));
+          if (game.category) details.append(createBadge(game.category));
           const platforms = document.createElement('span');
           platforms.className = 'platforms';
           const labels = [];
@@ -1379,7 +1426,11 @@
       }
 
       function updateCounts() {
-        const counts = categoryCounts(currentDataset());
+        const dataset = currentDataset();
+        const hasCategories = dataset.some(function (game) { return Boolean(game.category); });
+        quickTabs.hidden = !hasCategories;
+        legend.hidden = !hasCategories;
+        const counts = categoryCounts(dataset);
         document.querySelectorAll('[data-count]').forEach(function (element) {
           element.textContent = String(counts[element.dataset.count] || 0);
         });
