@@ -644,6 +644,19 @@
         border-radius: 50%;
       }
 
+      .catalog-updated {
+        margin: 0;
+        padding: 10px 18px;
+        border-bottom: 1px solid var(--line);
+        color: var(--footer-text);
+        font-size: 12px;
+        text-align: right;
+      }
+
+      .mobile-generated-date {
+        display: none;
+      }
+
       .message {
         display: grid;
         min-height: 320px;
@@ -817,6 +830,10 @@
       }
 
       @media (max-width: 600px) {
+        .data-panel[data-view="list"] > .catalog-updated {
+          display: none;
+        }
+
         .table-wrap {
           overflow-x: hidden;
         }
@@ -843,6 +860,26 @@
         th:nth-child(2) {
           width: auto;
           padding: 0 12px 0 4px;
+        }
+
+        .game-heading {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 8px;
+        }
+
+        .mobile-generated-date {
+          display: inline-block;
+          overflow: hidden;
+          color: var(--footer-text);
+          font-size: 10px;
+          font-weight: 500;
+          letter-spacing: 0;
+          text-align: right;
+          text-overflow: ellipsis;
+          text-transform: none;
+          white-space: nowrap;
         }
 
         td {
@@ -1031,6 +1068,7 @@
       </section>
 
       <section class="data-panel" aria-label="Game catalog">
+        <p id="generated-date" class="catalog-updated" hidden></p>
         <div id="content">
           <div class="message">
             <div>
@@ -1083,8 +1121,10 @@
       const resultCount = document.querySelector('#resultCount');
       const status = document.querySelector('#status');
       const statusText = document.querySelector('#statusText');
+      const dataPanel = document.querySelector('.data-panel');
       const quickTabs = document.querySelector('.quick-tabs');
       const legend = document.querySelector('.legend');
+      const generatedDate = document.querySelector('#generated-date');
 
       function parseCsv(text) {
         const rows = [];
@@ -1178,20 +1218,48 @@
         if (!response.ok) {
           throw new Error('Could not load ' + path + ' (' + response.status + ').');
         }
-        return parseCatalog(await response.text());
+        return {
+          catalog: parseCatalog(await response.text()),
+          lastModified: response.headers.get('Last-Modified')
+        };
+      }
+
+      function showLastModified(value) {
+        if (!value) {
+          generatedDate.hidden = true;
+          generatedDate.textContent = '';
+          return;
+        }
+
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) {
+          generatedDate.hidden = true;
+          generatedDate.textContent = '';
+          return;
+        }
+
+        generatedDate.textContent = 'Last file update ' + date.toLocaleDateString('en-US', {
+          dateStyle: 'medium'
+        });
+        generatedDate.hidden = false;
       }
 
       async function loadCatalogs() {
         setStatus('loading');
         renderMessage('loading');
+        showLastModified(null);
         try {
           const entries = Object.entries(DATASETS);
           const results = await Promise.all(entries.map(function (entry) {
             return fetchDataset(entry[1]);
           }));
           entries.forEach(function (entry, index) {
-            state.datasets[entry[0]] = results[index];
+            state.datasets[entry[0]] = results[index].catalog;
           });
+          const exclusiveIndex = entries.findIndex(function (entry) {
+            return entry[0] === 'exclusive';
+          });
+          showLastModified(results[exclusiveIndex].lastModified);
           state.loaded = true;
           setStatus('ready');
           render();
@@ -1370,7 +1438,20 @@
         headers.forEach(function (label) {
           const th = document.createElement('th');
           th.scope = 'col';
-          th.textContent = label;
+          if (label === 'Game') {
+            const heading = document.createElement('span');
+            heading.className = 'game-heading';
+            const headingLabel = document.createElement('span');
+            headingLabel.textContent = label;
+            const mobileDate = document.createElement('span');
+            mobileDate.className = 'mobile-generated-date';
+            mobileDate.textContent = generatedDate.textContent;
+            mobileDate.hidden = generatedDate.hidden;
+            heading.append(headingLabel, mobileDate);
+            th.append(heading);
+          } else {
+            th.textContent = label;
+          }
           headerRow.append(th);
         });
         thead.append(headerRow);
@@ -1442,6 +1523,7 @@
         const items = filteredGames();
         resultCount.textContent = String(items.length);
         if (items.length === 0) {
+          dataPanel.dataset.view = 'empty';
           content.replaceChildren();
           const empty = document.createElement('div');
           empty.className = 'message';
@@ -1454,8 +1536,10 @@
           return;
         }
         if (state.view === 'list') {
+          dataPanel.dataset.view = 'list';
           renderList(items);
         } else {
+          dataPanel.dataset.view = 'grid';
           renderGrid(items);
         }
       }

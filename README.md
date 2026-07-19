@@ -64,7 +64,7 @@ The static view in `index.html` reads the two processed files directly:
 
 It provides English search, platform and classification filters, category counts, list and grid layouts, responsive mobile behavior, and explicit loading and error states. It does not repeat the catalog comparison or classification rules in the browser.
 
-The first Phase D version intentionally does not display the data update date. View changes do not have a dedicated `push` trigger. To publish a view change immediately, run **Update catalogs and deploy Pages** manually from GitHub Actions after committing it to `main`; otherwise the next scheduled catalog run will deploy the current `index.html`.
+The view displays the `Last-Modified` response header for `data/ultimate-exclusive.csv` as the last file update time. This reflects when the published file changed, not necessarily the most recent successful generator run. View changes do not have a dedicated `push` trigger. To publish a view change immediately, run **Update catalogs and deploy Pages** manually from GitHub Actions after committing it to `main`; otherwise the next scheduled catalog run will deploy the current `index.html`.
 
 ## Output contract
 
@@ -86,4 +86,3 @@ All files use UTF-8 with BOM, CRLF line endings, lowercase `true`/`false` values
 - Platforms: Windows PC, Xbox One, and Xbox Series X|S
 - Name matching: exact `ProductTitle`; no title normalization
 - Category priority: `EA Play`, then `Ubisoft+ Classics`, then `Ultimate Exclusive`
-
