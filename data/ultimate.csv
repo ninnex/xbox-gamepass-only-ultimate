@@ -306,7 +306,8 @@ FixForce,true,true
 Fogpiercer,false,true
 Football Manager 26,false,true
 Football Manager 26 Console,true,true
-FOR HONOR - Standard Edition,true,true
+FOR HONOR,false,true
+FOR HONOR - Standard Edition,true,false
 FOR HONOR : MARCHING FIRE EDITION,true,false
 For The King II,true,true
 Fortnite,true,true
@@ -464,6 +465,7 @@ Mirror's Edge,false,true
 Mirror's Edge™,true,false
 Mirror's Edge™ Catalyst,true,true
 Mixtape,true,true
+MONOPOLY 2024,false,true
 Monopoly Madness,true,false
 MONOPOLY Madness,false,true
 Monster Sanctuary,true,false
@@ -498,7 +500,6 @@ Need for Speed™ Rivals: Complete Edition,false,true
 Need for Speed™ Unbound,true,true
 Neon Abyss,true,true
 New MONOPOLY®,true,false
-NEW MONOPOLY®,false,true
 New Super Lucky's Tale,true,true
 NHL® 25 Xbox Series X|S,true,false
 NHL® 26 Xbox Series X|S,true,false
@@ -588,7 +589,8 @@ RESIDENT EVIL 7 biohazard,true,true
 Resident Evil Village,true,true
 Retro Classics,true,true
 Return to Castle Wolfenstein,false,true
-Riders Republic™,true,true
+Riders Republic Standard Edition,false,true
+Riders Republic™,true,false
 Rise of Nations: Extended Edition,false,true
 Risk: Urban Assault,true,false
 RoadCraft,true,true
