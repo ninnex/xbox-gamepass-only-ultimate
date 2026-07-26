@@ -10,7 +10,6 @@ object AppConfig {
     const val MS_CV = "DGU1mcuYo0WMMp+F.1"
     const val PRODUCT_BATCH_SIZE = 20
     const val PRODUCT_CONCURRENCY = 4
-    const val STORE_PAGE_CONCURRENCY = 8
     const val REQUEST_ATTEMPTS = 3
     val REQUEST_TIMEOUT: Duration = Duration.ofSeconds(60)
 

@@ -38,7 +38,7 @@ The default output directory is `data/`. A different output directory can be sup
 ./mvnw --batch-mode exec:java -Dexec.args="build/generated-data"
 ```
 
-The program obtains every catalog and its product metadata, resolves an official Xbox Store URL for every Product ID, preserves per-list new-game dates, and validates the complete candidate set before replacing any published data. ICU4J supplies the `en-US` collation used to reproduce Phase A JavaScript ordering.
+The program obtains every catalog and its product metadata, resolves an official Xbox Store URL for every Product ID, preserves per-list new-game dates, and validates the complete candidate set before replacing any published data. It never requests an individual Xbox Store page: when structured product metadata has no Store URL, it uses the official `-/PRODUCT_ID` route directly. ICU4J supplies the `en-US` collation used to reproduce Phase A JavaScript ordering.
 
 To generate into a candidate directory while comparing against the currently published baseline:
 
@@ -83,7 +83,7 @@ The visible timestamp comes from `catalog-info.json:lastCheckedAt` and therefore
 | `data/ultimate-exclusive.csv` | `name,productId,console,pc,category,storePath,newSinceDate` | Ultimate minus Premium, EA Play, and Ubisoft+ Classics |
 | `data/catalog-info.json` | Common JSON configuration | Store base URL, new-game display duration, last successful check, and CSV change result |
 
-All CSV files use UTF-8 without BOM, LF (`\n`) line endings, lowercase `true`/`false` values, and English catalog titles and category values. `storePath` is obtained from an official Xbox.com URL and ends in the uppercase Product ID. `newSinceDate` is empty for the migration baseline; later additions use `YYYY-MM-DD` and retain their first-seen date while they remain in that specific list.
+All CSV files use UTF-8 without BOM, LF (`\n`) line endings, lowercase `true`/`false` values, and English catalog titles and category values. `storePath` comes from structured Xbox product metadata when available; otherwise it is the official `-/PRODUCT_ID` route. Every path ends in the uppercase Product ID. `newSinceDate` is empty for the migration baseline; later additions use `YYYY-MM-DD` and retain their first-seen date while they remain in that specific list.
 
 ## Scope
 

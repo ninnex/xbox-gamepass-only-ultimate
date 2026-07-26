@@ -84,9 +84,9 @@ class XboxClient(
         val storePathCount = resolvedProducts.values.count { it.storePath != null }
         println(
             "[Phase B] Structured metadata supplied $storePathCount/${resolvedProducts.size} store paths; " +
-                "resolving the remainder from official Xbox pages.",
+                "using official Product ID routes for the remainder.",
         )
-        return resolveMissingStorePaths(resolvedProducts)
+        return resolveStorePaths(resolvedProducts)
     }
 
     private fun loadBatches(batches: List<List<String>>, retry: Boolean): List<List<JsonNode>> {
@@ -176,67 +176,29 @@ class XboxClient(
         return null
     }
 
-    private fun resolveMissingStorePaths(
+    private fun resolveStorePaths(
         products: Map<String, ResolvedProduct>,
-    ): Map<String, ProductMetadata> {
-        val executor = Executors.newFixedThreadPool(
-            minOf(AppConfig.STORE_PAGE_CONCURRENCY, products.size),
-        )
-        return try {
-            val futures = products.values.map { product ->
-                executor.submit(Callable {
-                    val storePath = product.storePath ?: loadCanonicalStorePath(product.productId)
-                    ProductMetadata(product.productId, product.productTitle, storePath)
-                })
-            }
-            futures.map { future ->
-                try {
-                    future.get()
-                } catch (error: ExecutionException) {
-                    throw (error.cause as? Exception ?: error)
-                }
-            }.associateByTo(linkedMapOf()) { it.productId }
-        } finally {
-            executor.shutdownNow()
-        }
-    }
-
-    private fun loadCanonicalStorePath(productId: String): String {
-        val lookupUrl = "${AppConfig.XBOX_STORE_BASE_URL}-/$productId"
-        val html = fetchText(URI.create(lookupUrl), "Xbox Store page $productId", "text/html")
-        val canonicalUrl = linkTagPattern.findAll(html)
-            .map { it.value }
-            .firstNotNullOfOrNull { tag ->
-                if (!canonicalRelPattern.containsMatchIn(tag)) {
-                    null
-                } else {
-                    hrefPattern.find(tag)?.groupValues?.get(2)?.decodeHtmlAttribute()
-                }
-            }
-            ?: throw IllegalStateException(
-                "Xbox Store page $productId does not expose a canonical URL.",
+    ): Map<String, ProductMetadata> = products.values
+        .map { product ->
+            ProductMetadata(
+                productId = product.productId,
+                productTitle = product.productTitle,
+                storePath = product.storePath ?: StorePath.fromProductId(product.productId),
             )
-        return runCatching { StorePath.fromOfficialUrl(canonicalUrl, productId) }
-            .getOrElse {
-                System.err.println(
-                    "[Phase B] $productId canonical URL is not a Store URL; " +
-                        "using the official Product ID route.",
-                )
-                StorePath.fromOfficialUrl(lookupUrl, productId)
-            }
-    }
+        }
+        .associateByTo(linkedMapOf()) { it.productId }
 
     private fun fetchJson(uri: URI, label: String): JsonNode {
-        return objectMapper.readTree(fetchText(uri, label, "application/json"))
+        return objectMapper.readTree(fetchText(uri, label))
     }
 
-    private fun fetchText(uri: URI, label: String, accept: String): String {
+    private fun fetchText(uri: URI, label: String): String {
         var lastError: Exception? = null
         for (attempt in 1..AppConfig.REQUEST_ATTEMPTS) {
             try {
                 val request = HttpRequest.newBuilder(uri)
                     .timeout(AppConfig.REQUEST_TIMEOUT)
-                    .header("Accept", accept)
+                    .header("Accept", "application/json")
                     .header("Cache-Control", "no-store")
                     .header("User-Agent", "xbox-gamepass-csv-generator/1.0")
                     .GET()
@@ -277,21 +239,4 @@ class XboxClient(
         val productTitle: String,
         val storePath: String?,
     )
-
-    private fun String.decodeHtmlAttribute(): String =
-        replace("&amp;", "&")
-            .replace("&#x2F;", "/", ignoreCase = true)
-            .replace("&#47;", "/")
-
-    private companion object {
-        val linkTagPattern = Regex("""<link\b[^>]*>""", setOf(RegexOption.IGNORE_CASE))
-        val canonicalRelPattern = Regex(
-            """\brel\s*=\s*(["'])canonical\1""",
-            setOf(RegexOption.IGNORE_CASE),
-        )
-        val hrefPattern = Regex(
-            """\bhref\s*=\s*(["'])(.*?)\1""",
-            setOf(RegexOption.IGNORE_CASE),
-        )
-    }
 }
