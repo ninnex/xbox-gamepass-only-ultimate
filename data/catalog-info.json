@@ -1,6 +1,6 @@
 {
   "xboxStoreBaseUrl" : "https://www.xbox.com/en-US/games/store/",
-  "newGameDisplayDays" : 45,
-  "lastCheckedAt" : "2026-07-26T10:53:26.720766177Z",
+  "newGameDisplayDays" : 20,
+  "lastCheckedAt" : "2026-07-26T20:04:13.013643324Z",
   "changesFound" : false
 }
