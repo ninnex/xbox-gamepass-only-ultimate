@@ -268,6 +268,11 @@ class CatalogProcessorTest {
 
     private fun products(vararg values: Pair<String, String>): Map<String, ProductMetadata> =
         values.associate { (id, title) ->
-            id to ProductMetadata(id, title, "${title.lowercase().replace(' ', '-')}/$id")
+            id to ProductMetadata(
+                id,
+                title,
+                "${title.lowercase().replace(' ', '-')}/$id",
+                PriceStatus.PAID,
+            )
         }
 }

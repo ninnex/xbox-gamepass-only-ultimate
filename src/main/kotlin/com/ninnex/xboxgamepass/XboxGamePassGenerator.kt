@@ -9,7 +9,7 @@ import java.util.concurrent.ExecutionException
 import java.util.concurrent.Executors
 
 class XboxGamePassGenerator(
-    private val client: XboxClient = XboxClient(),
+    private val client: XboxCatalogClient = XboxClient(),
     private val clock: Clock = Clock.systemUTC(),
 ) {
     fun generate(outputDirectory: Path): GenerationResult {
@@ -18,9 +18,13 @@ class XboxGamePassGenerator(
             loadedCatalogs.getValue(catalog.key).flatMap { it.ids }
         }
         val products = client.loadProducts(allProductIds)
+        val essentialSources = EssentialCatalogFilter.filter(
+            loadedCatalogs.getValue("essential"),
+            products,
+        )
 
         fun rows(key: String): List<GameRow> = CatalogProcessor.buildCatalogRows(
-            loadedCatalogs.getValue(key),
+            if (key == "essential") essentialSources else loadedCatalogs.getValue(key),
             products,
         )
 
@@ -79,6 +83,35 @@ class XboxGamePassGenerator(
             }
         } finally {
             executor.shutdownNow()
+        }
+    }
+}
+
+internal object EssentialCatalogFilter {
+    fun filter(
+        platformLists: List<PlatformProductIds>,
+        products: Map<String, ProductMetadata>,
+    ): List<PlatformProductIds> {
+        val essentialIds = platformLists
+            .flatMapTo(linkedSetOf()) { it.ids }
+        val unknownIds = essentialIds
+            .filter { products[it]?.priceStatus != PriceStatus.FREE &&
+                products[it]?.priceStatus != PriceStatus.PAID }
+            .sorted()
+        check(unknownIds.isEmpty()) {
+            "Essential product price could not be determined. " +
+                "Product IDs: ${unknownIds.joinToString(", ")}. " +
+                "No catalog files were written."
+        }
+
+        val freeIds = essentialIds.filterTo(hashSetOf()) {
+            products.getValue(it).priceStatus == PriceStatus.FREE
+        }
+        println(
+            "[Phase B] Essential: excluded ${freeIds.size} confirmed free product IDs.",
+        )
+        return platformLists.map { platformList ->
+            platformList.copy(ids = platformList.ids.filterNot(freeIds::contains))
         }
     }
 }

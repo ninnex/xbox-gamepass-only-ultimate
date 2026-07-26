@@ -3,6 +3,7 @@ package com.ninnex.xboxgamepass
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import java.io.IOException
+import java.math.BigDecimal
 import java.net.URI
 import java.net.URLEncoder
 import java.net.http.HttpClient
@@ -11,14 +12,20 @@ import java.net.http.HttpResponse
 import java.nio.charset.StandardCharsets
 import java.util.Locale
 
+interface XboxCatalogClient {
+    fun loadSigl(source: CatalogSource, catalogName: String): PlatformProductIds
+
+    fun loadProducts(productIds: List<String>): Map<String, ProductMetadata>
+}
+
 class XboxClient(
     private val objectMapper: ObjectMapper = ObjectMapper(),
     private val httpClient: HttpClient = HttpClient.newBuilder()
         .connectTimeout(AppConfig.REQUEST_TIMEOUT)
         .followRedirects(HttpClient.Redirect.NORMAL)
         .build(),
-) {
-    fun loadSigl(source: CatalogSource, catalogName: String): PlatformProductIds {
+) : XboxCatalogClient {
+    override fun loadSigl(source: CatalogSource, catalogName: String): PlatformProductIds {
         val data = fetchJson(
             buildUri(
                 AppConfig.SIGL_ENDPOINT,
@@ -50,7 +57,7 @@ class XboxClient(
         return PlatformProductIds(source.platform, ids.toList())
     }
 
-    fun loadProducts(productIds: List<String>): Map<String, ProductMetadata> {
+    override fun loadProducts(productIds: List<String>): Map<String, ProductMetadata> {
         val uniqueIds = productIds.mapTo(linkedSetOf()) { it.uppercase(Locale.ROOT) }.toList()
         check(uniqueIds.isNotEmpty()) { "No Product IDs were supplied." }
         println(
@@ -125,6 +132,9 @@ class XboxClient(
                 productId = id,
                 productTitle = name,
                 storePath = findStructuredStorePath(product, id),
+                priceStatus = ProductPriceClassifier.classify(
+                    product.get("DisplaySkuAvailabilities"),
+                ),
             )
         }
     }
@@ -157,6 +167,7 @@ class XboxClient(
                 productId = product.productId,
                 productTitle = product.productTitle,
                 storePath = product.storePath ?: StorePath.fromProductId(product.productId),
+                priceStatus = product.priceStatus,
             )
         }
         .associateByTo(linkedMapOf()) { it.productId }
@@ -211,5 +222,99 @@ class XboxClient(
         val productId: String,
         val productTitle: String,
         val storePath: String?,
+        val priceStatus: PriceStatus,
+    )
+}
+
+internal object ProductPriceClassifier {
+    fun classify(displaySkuAvailabilities: JsonNode?): PriceStatus {
+        if (displaySkuAvailabilities?.isArray != true) return PriceStatus.UNKNOWN
+
+        val skuCandidates = buildList {
+            displaySkuAvailabilities.forEach { displaySkuAvailability ->
+                val skuProperties = displaySkuAvailability.get("Sku")?.get("Properties")
+                val isTrial = skuProperties?.get("IsTrial")
+                if (isTrial != null && !isTrial.isBoolean) return@forEach
+                if (isTrial?.booleanValue() == true) return@forEach
+                val skuDisplayRank = readRank(skuProperties?.get("SkuDisplayRank"))
+                    ?: return@forEach
+                add(RankedSku(skuDisplayRank, displaySkuAvailability))
+            }
+        }
+        val primarySkuRank = skuCandidates.minOfOrNull { it.displayRank }
+            ?: return PriceStatus.UNKNOWN
+        val primaryStatuses = skuCandidates
+            .asSequence()
+            .filter { it.displayRank == primarySkuRank }
+            .map { classifySku(it.displaySkuAvailability) }
+            .toSet()
+
+        return primaryStatuses.singleOrNull()
+            ?.takeUnless { it == PriceStatus.UNKNOWN }
+            ?: PriceStatus.UNKNOWN
+    }
+
+    private fun classifySku(displaySkuAvailability: JsonNode): PriceStatus {
+        val availabilities = displaySkuAvailability.get("Availabilities")
+        if (availabilities?.isArray != true) return PriceStatus.UNKNOWN
+
+        val candidates = buildList {
+            availabilities.forEach { availability ->
+                val remediationRequired = availability.get("RemediationRequired")
+                if (remediationRequired != null && !remediationRequired.isBoolean) {
+                    return@forEach
+                }
+                if (remediationRequired?.booleanValue() == true) return@forEach
+                val displayRank = readRank(availability.get("DisplayRank"))
+                    ?: return@forEach
+                add(RankedAvailability(displayRank, availability))
+            }
+        }
+        val primaryRank = candidates.minOfOrNull { it.displayRank }
+            ?: return PriceStatus.UNKNOWN
+        val primaryStatuses = candidates
+            .asSequence()
+            .filter { it.displayRank == primaryRank }
+            .map { classifyPrice(it.availability) }
+            .toSet()
+        return primaryStatuses.singleOrNull()
+            ?.takeUnless { it == PriceStatus.UNKNOWN }
+            ?: PriceStatus.UNKNOWN
+    }
+
+    private fun classifyPrice(availability: JsonNode): PriceStatus {
+        val price = availability
+            .get("OrderManagementData")
+            ?.get("Price")
+            ?: return PriceStatus.UNKNOWN
+        val listPrice = readPrice(price.get("ListPrice")) ?: return PriceStatus.UNKNOWN
+        val msrp = readPrice(price.get("MSRP")) ?: return PriceStatus.UNKNOWN
+        if (listPrice.signum() < 0 || msrp.signum() < 0) return PriceStatus.UNKNOWN
+
+        return if (listPrice.signum() == 0 && msrp.signum() == 0) {
+            PriceStatus.FREE
+        } else {
+            PriceStatus.PAID
+        }
+    }
+
+    private fun readRank(node: JsonNode?): Int? {
+        if (node == null || (!node.isIntegralNumber && !node.isTextual)) return null
+        return node.asText().trim().toIntOrNull()
+    }
+
+    private fun readPrice(node: JsonNode?): BigDecimal? {
+        if (node == null || (!node.isNumber && !node.isTextual)) return null
+        return runCatching { node.asText().trim().toBigDecimal() }.getOrNull()
+    }
+
+    private data class RankedAvailability(
+        val displayRank: Int,
+        val availability: JsonNode,
+    )
+
+    private data class RankedSku(
+        val displayRank: Int,
+        val displaySkuAvailability: JsonNode,
     )
 }

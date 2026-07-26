@@ -5,6 +5,12 @@ enum class Platform {
     PC,
 }
 
+enum class PriceStatus {
+    FREE,
+    PAID,
+    UNKNOWN,
+}
+
 data class CatalogSource(
     val id: String,
     val platform: Platform,
@@ -27,6 +33,7 @@ data class ProductMetadata(
     val productId: String,
     val productTitle: String,
     val storePath: String,
+    val priceStatus: PriceStatus,
 )
 
 data class GameRow(

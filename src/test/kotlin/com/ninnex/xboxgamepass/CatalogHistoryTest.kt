@@ -84,6 +84,45 @@ class CatalogHistoryTest {
     }
 
     @Test
+    fun `removing an Essential product preserves the retained product date`() {
+        val root = Files.createTempDirectory("history-essential-removal-")
+        try {
+            val previousCatalogs = catalogs("2026-07-01").copy(
+                essential = listOf(
+                    game("Free", "9FREE0000001", "2026-07-02"),
+                    game("Paid", "9PAID0000001", "2026-07-03"),
+                ),
+            )
+            val previousProcessed = CatalogProcessor.buildProcessedRows(previousCatalogs)
+            CsvWriter.createFiles(previousCatalogs, previousProcessed).forEach { file ->
+                Files.writeString(root.resolve(file.name), file.content)
+            }
+            val candidateCatalogs = previousCatalogs.copy(
+                essential = listOf(previousCatalogs.essential.last().copy(newSinceDate = "")),
+            )
+            val candidateProcessed = CatalogProcessor.buildProcessedRows(candidateCatalogs)
+
+            val result = CatalogHistory.applyNewSinceDates(
+                root,
+                candidateCatalogs,
+                candidateProcessed,
+                LocalDate.parse("2026-07-25"),
+            )
+
+            assertEquals("2026-07-03", result.catalogs.essential.single().newSinceDate)
+            assertEquals("9PAID0000001", result.catalogs.essential.single().productId)
+            assertTrue(
+                CatalogHistory.changesFound(
+                    root,
+                    CsvWriter.createFiles(result.catalogs, result.processed),
+                ),
+            )
+        } finally {
+            deleteRecursively(root)
+        }
+    }
+
+    @Test
     fun `changesFound compares exactly the seven CSV contents`() {
         val root = Files.createTempDirectory("history-changes-")
         try {
