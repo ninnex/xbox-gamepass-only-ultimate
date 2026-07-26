@@ -96,8 +96,15 @@ class CatalogProcessorTest {
     @Test
     fun `subtracts Premium and applies EA Play before Ubisoft priority`() {
         val catalogs = Catalogs(
-            ultimate = games("Premium game", "EA game", "Both game", "Ubisoft game", "Exclusive game"),
-            premium = games("Premium game"),
+            ultimate = games(
+                "Essential game",
+                "Premium game",
+                "EA game",
+                "Both game",
+                "Ubisoft game",
+                "Exclusive game",
+            ),
+            premium = games("Essential game", "Premium game"),
             essential = games("Essential game"),
             eaPlay = games("EA game", "Both game"),
             ubisoftPlus = games("Both game", "Ubisoft game"),
@@ -105,6 +112,27 @@ class CatalogProcessorTest {
 
         val processed = CatalogProcessor.buildProcessedRows(catalogs)
 
+        assertEquals(
+            listOf(
+                "Essential game" to AppConfig.ESSENTIAL,
+                "Premium game" to AppConfig.PREMIUM,
+                "EA game" to AppConfig.EA_PLAY,
+                "Both game" to AppConfig.EA_PLAY,
+                "Ubisoft game" to AppConfig.UBISOFT_PLUS,
+                "Exclusive game" to AppConfig.ULTIMATE_EXCLUSIVE,
+            ),
+            processed.ultimate.map { it.name to it.category },
+        )
+        assertEquals(
+            listOf(
+                "Essential game" to AppConfig.ESSENTIAL,
+                "Premium game" to AppConfig.PREMIUM,
+            ),
+            processed.premium.map { it.name to it.category },
+        )
+        assertEquals(listOf("Essential game" to AppConfig.ESSENTIAL), processed.essential.map {
+            it.name to it.category
+        })
         assertEquals(
             listOf(
                 "EA game" to AppConfig.EA_PLAY,
@@ -137,6 +165,9 @@ class CatalogProcessorTest {
     fun `rejects empty source catalogs and invalid rows`() {
         val valid = games("Valid")
         val processed = ProcessedCatalogs(
+            ultimate = listOf(processed("Valid")),
+            premium = listOf(processed("Valid", AppConfig.PREMIUM)),
+            essential = listOf(processed("Valid", AppConfig.ESSENTIAL)),
             ultimateNoPremium = listOf(processed("Exclusive")),
             ultimateExclusive = listOf(processed("Exclusive")),
         )
@@ -179,14 +210,37 @@ class CatalogProcessorTest {
             ubisoftPlus = games("Ubisoft"),
         )
         val incorrectlyClassified = processed("EA").copy(category = AppConfig.UBISOFT_PLUS)
+        val correctlyProcessed = CatalogProcessor.buildProcessedRows(catalogs)
 
         assertFailsWith<IllegalArgumentException> {
             CatalogProcessor.validateRows(
                 catalogs,
-                ProcessedCatalogs(
+                correctlyProcessed.copy(
                     ultimateNoPremium = listOf(incorrectlyClassified, processed("Exclusive")),
                     ultimateExclusive = listOf(processed("Exclusive")),
                 ),
+            )
+        }
+    }
+
+    @Test
+    fun `rejects a wrong classification in the full Ultimate catalog`() {
+        val catalogs = Catalogs(
+            ultimate = games("Essential", "Premium", "Exclusive"),
+            premium = games("Essential", "Premium"),
+            essential = games("Essential"),
+            eaPlay = games("EA"),
+            ubisoftPlus = games("Ubisoft"),
+        )
+        val processed = CatalogProcessor.buildProcessedRows(catalogs)
+        val incorrectUltimate = processed.ultimate.map { row ->
+            if (row.name == "Essential") row.copy(category = AppConfig.PREMIUM) else row
+        }
+
+        assertFailsWith<IllegalArgumentException> {
+            CatalogProcessor.validateRows(
+                catalogs,
+                processed.copy(ultimate = incorrectUltimate),
             )
         }
     }
@@ -197,14 +251,17 @@ class CatalogProcessorTest {
             GameRow(name, productId, true, false, "game-$index/$productId")
         }
 
-    private fun processed(name: String): ProcessedGameRow {
+    private fun processed(
+        name: String,
+        category: String = AppConfig.ULTIMATE_EXCLUSIVE,
+    ): ProcessedGameRow {
         val productId = "9TEST0000000"
         return ProcessedGameRow(
             name,
             productId,
             true,
             false,
-            AppConfig.ULTIMATE_EXCLUSIVE,
+            category,
             "game/$productId",
         )
     }

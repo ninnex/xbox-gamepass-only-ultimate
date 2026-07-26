@@ -43,6 +43,10 @@
         --blue-soft: #eaf0ff;
         --violet: #7456d8;
         --violet-soft: #f0edff;
+        --amber: #9a5b00;
+        --amber-soft: #fff3d8;
+        --rose: #a33870;
+        --rose-soft: #fcebf4;
         --red: #b42318;
         --red-soft: #fef3f2;
         --shadow: 0 1px 2px rgba(20, 28, 22, 0.04), 0 12px 32px rgba(20, 28, 22, 0.05);
@@ -82,6 +86,10 @@
         --blue-soft: #1b294c;
         --violet: #b7a5ff;
         --violet-soft: #2d254c;
+        --amber: #ffc66d;
+        --amber-soft: #493208;
+        --rose: #f3acd1;
+        --rose-soft: #482039;
         --red: #ff968d;
         --red-soft: #431f1c;
         --shadow: 0 1px 2px rgba(0, 0, 0, 0.22), 0 14px 34px rgba(0, 0, 0, 0.28);
@@ -476,21 +484,20 @@
         white-space: nowrap;
       }
 
-      th:nth-child(1) {
+      .col-rank {
         width: 70px;
         text-align: center;
       }
 
-      th:nth-child(2) {
-        width: 48%;
+      .col-game {
+        width: auto;
       }
 
-      th:nth-child(3) {
+      .col-classification {
         width: 190px;
       }
 
-      th:nth-child(4),
-      th:nth-child(5) {
+      .col-platform {
         width: 120px;
         text-align: center;
       }
@@ -623,6 +630,16 @@
       .badge-ubisoft {
         color: var(--violet);
         background: var(--violet-soft);
+      }
+
+      .badge-essential {
+        color: var(--amber);
+        background: var(--amber-soft);
+      }
+
+      .badge-premium {
+        color: var(--rose);
+        background: var(--rose-soft);
       }
 
       .new-game-badge {
@@ -778,7 +795,7 @@
         to { transform: rotate(360deg); }
       }
 
-      @media (max-width: 1160px) {
+      @media (max-width: 1540px) {
         .toolbar {
           align-items: flex-start;
           flex-direction: column;
@@ -888,8 +905,8 @@
           table-layout: fixed;
         }
 
-        th:nth-child(n + 3),
-        td:nth-child(n + 3) {
+        .col-classification,
+        .col-platform {
           display: none;
         }
 
@@ -897,12 +914,12 @@
           height: 46px;
         }
 
-        th:nth-child(1) {
+        .col-rank {
           width: 44px;
           padding: 0 6px;
         }
 
-        th:nth-child(2) {
+        .col-game {
           width: auto;
           padding: 0 12px 0 4px;
         }
@@ -931,14 +948,9 @@
           height: 76px;
         }
 
-        td:nth-child(1) {
-          width: 44px;
-          padding: 0 6px;
-        }
-
-        td:nth-child(2) {
-          width: auto;
-          padding: 7px 12px 7px 4px;
+        td.col-game {
+          padding-top: 7px;
+          padding-bottom: 7px;
           white-space: normal;
         }
 
@@ -986,7 +998,7 @@
           white-space: nowrap;
         }
 
-        .badge.mobile-category {
+        .data-panel[data-view="list"] .badge.mobile-category {
           display: inline-flex;
           flex: 0 0 auto;
           margin-left: auto;
@@ -996,7 +1008,7 @@
           line-height: 1;
         }
 
-        .badge.mobile-category::before {
+        .data-panel[data-view="list"] .badge.mobile-category::before {
           display: none;
         }
       }
@@ -1078,20 +1090,7 @@
 
         <div class="right-tools">
           <div class="summary-label"><strong id="resultCount">0</strong> results</div>
-          <div class="quick-tabs" role="tablist" aria-label="Classification">
-            <button class="tab active" data-category="all" role="tab" aria-selected="true">
-              All <span class="tab-count" data-count="all">0</span>
-            </button>
-            <button class="tab" data-category="Ultimate Exclusive" role="tab" aria-selected="false">
-              Exclusive <span class="tab-count" data-count="Ultimate Exclusive">0</span>
-            </button>
-            <button class="tab" data-category="EA Play" role="tab" aria-selected="false">
-              EA Play <span class="tab-count" data-count="EA Play">0</span>
-            </button>
-            <button class="tab" data-category="Ubisoft+ Classics" role="tab" aria-selected="false">
-              Ubisoft+ <span class="tab-count" data-count="Ubisoft+ Classics">0</span>
-            </button>
-          </div>
+          <div class="quick-tabs" role="tablist" aria-label="Classification"></div>
           <div class="view-switch" aria-label="View options">
             <button class="icon-button" data-view="grid" aria-label="Grid view" aria-pressed="false">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
@@ -1125,11 +1124,7 @@
           </div>
         </div>
         <footer class="panel-footer">
-          <div class="legend" aria-label="Classification legend">
-            <span><i style="background: #107c10"></i>Ultimate Exclusive</span>
-            <span><i style="background: #3666d6"></i>EA Play</span>
-            <span><i style="background: #7456d8"></i>Ubisoft+</span>
-          </div>
+          <div class="legend" aria-label="Classification legend"></div>
           <span>United States catalog · PC and Console</span>
         </footer>
       </section>
@@ -1164,7 +1159,35 @@
         'storePath',
         'newSinceDate'
       ];
-      const ALLOWED_CATEGORIES = new Set(['EA Play', 'Ubisoft+ Classics', 'Ultimate Exclusive']);
+      const CATEGORY_CONFIG = {
+        Essential: {
+          shortLabel: 'Essential',
+          badgeClass: 'badge-essential',
+          color: '#c47a08'
+        },
+        Premium: {
+          shortLabel: 'Premium',
+          badgeClass: 'badge-premium',
+          color: '#bd4f89'
+        },
+        'EA Play': {
+          shortLabel: 'EA Play',
+          badgeClass: 'badge-ea',
+          color: '#3666d6'
+        },
+        'Ubisoft+ Classics': {
+          shortLabel: 'Ubisoft+',
+          badgeClass: 'badge-ubisoft',
+          color: '#7456d8'
+        },
+        'Ultimate Exclusive': {
+          shortLabel: 'Exclusive',
+          badgeClass: 'badge-exclusive',
+          color: '#107c10'
+        }
+      };
+      const CATEGORY_ORDER = Object.keys(CATEGORY_CONFIG);
+      const ALLOWED_CATEGORIES = new Set(CATEGORY_ORDER);
       const state = {
         datasets: {
           difference: [],
@@ -1441,12 +1464,10 @@
       }
 
       function categoryCounts(items) {
-        const counts = {
-          all: items.length,
-          'Ultimate Exclusive': 0,
-          'EA Play': 0,
-          'Ubisoft+ Classics': 0
-        };
+        const counts = { all: items.length };
+        CATEGORY_ORDER.forEach(function (category) {
+          counts[category] = 0;
+        });
         items.forEach(function (game) {
           if (game.category) counts[game.category] += 1;
         });
@@ -1531,12 +1552,7 @@
         if (game.category) {
           const category = createBadge(game.category);
           category.classList.add('mobile-category');
-          category.textContent =
-            game.category === 'Ultimate Exclusive'
-              ? 'Exclusive'
-              : game.category === 'Ubisoft+ Classics'
-                ? 'Ubisoft+'
-                : 'EA Play';
+          category.textContent = CATEGORY_CONFIG[game.category].shortLabel;
           category.setAttribute('aria-label', game.category);
           meta.append(category);
         }
@@ -1546,15 +1562,10 @@
       }
 
       function createBadge(category) {
+        const config = CATEGORY_CONFIG[category];
         const badge = document.createElement('span');
-        badge.className =
-          'badge ' +
-          (category === 'Ultimate Exclusive'
-            ? 'badge-exclusive'
-            : category === 'EA Play'
-              ? 'badge-ea'
-              : 'badge-ubisoft');
-        badge.textContent = category === 'Ubisoft+ Classics' ? 'Ubisoft+' : category;
+        badge.className = 'badge ' + config.badgeClass;
+        badge.textContent = config.shortLabel;
         return badge;
       }
 
@@ -1573,17 +1584,26 @@
         const table = document.createElement('table');
         const thead = document.createElement('thead');
         const headerRow = document.createElement('tr');
-        const headers = showClassification
-          ? ['#', 'Game', 'Classification', 'PC', 'Console']
-          : ['#', 'Game', 'PC', 'Console'];
-        headers.forEach(function (label) {
+        const headers = [
+          { label: '#', className: 'col-rank' },
+          { label: 'Game', className: 'col-game' }
+        ];
+        if (showClassification) {
+          headers.push({ label: 'Classification', className: 'col-classification' });
+        }
+        headers.push(
+          { label: 'PC', className: 'col-platform col-pc' },
+          { label: 'Console', className: 'col-platform col-console' }
+        );
+        headers.forEach(function (header) {
           const th = document.createElement('th');
           th.scope = 'col';
-          if (label === 'Game') {
+          th.className = header.className;
+          if (header.label === 'Game') {
             const heading = document.createElement('span');
             heading.className = 'game-heading';
             const headingLabel = document.createElement('span');
-            headingLabel.textContent = label;
+            headingLabel.textContent = header.label;
             const mobileDate = document.createElement('span');
             mobileDate.className = 'mobile-generated-date';
             mobileDate.textContent = generatedDate.textContent;
@@ -1591,7 +1611,7 @@
             heading.append(headingLabel, mobileDate);
             th.append(heading);
           } else {
-            th.textContent = label;
+            th.textContent = header.label;
           }
           headerRow.append(th);
         });
@@ -1601,17 +1621,19 @@
         items.forEach(function (game, index) {
           const row = document.createElement('tr');
           const rank = document.createElement('td');
-          rank.className = 'rank-cell';
+          rank.className = 'rank-cell col-rank';
           rank.textContent = String(index + 1);
           const identity = document.createElement('td');
+          identity.className = 'col-game';
           identity.append(createGameIdentity(game));
           const classification = document.createElement('td');
+          classification.className = 'col-classification';
           if (game.category) classification.append(createBadge(game.category));
           const pc = document.createElement('td');
-          pc.className = 'center';
+          pc.className = 'center col-platform col-pc';
           pc.append(createAvailability(game.pc, 'PC'));
           const consoleCell = document.createElement('td');
-          consoleCell.className = 'center';
+          consoleCell.className = 'center col-platform col-console';
           consoleCell.append(createAvailability(game.console, 'Console'));
           row.append(rank, identity);
           if (showClassification) row.append(classification);
@@ -1647,20 +1669,54 @@
         content.replaceChildren(grid);
       }
 
-      function updateCounts() {
+      function createCategoryTab(category, label, count) {
+        const tab = document.createElement('button');
+        const active = state.category === category;
+        tab.className = 'tab' + (active ? ' active' : '');
+        tab.dataset.category = category;
+        tab.type = 'button';
+        tab.role = 'tab';
+        tab.setAttribute('aria-selected', String(active));
+        tab.append(document.createTextNode(label + ' '));
+        const value = document.createElement('span');
+        value.className = 'tab-count';
+        value.textContent = String(count);
+        tab.append(value);
+        tab.addEventListener('click', function () {
+          state.category = category;
+          render();
+        });
+        return tab;
+      }
+
+      function updateCategoryControls() {
         const dataset = currentDataset();
-        const hasCategories = dataset.some(function (game) { return Boolean(game.category); });
+        const counts = categoryCounts(dataset);
+        const categories = CATEGORY_ORDER.filter(function (category) {
+          return counts[category] > 0;
+        });
+        const hasCategories = categories.length > 0;
         quickTabs.hidden = !hasCategories;
         legend.hidden = !hasCategories;
-        const counts = categoryCounts(dataset);
-        document.querySelectorAll('[data-count]').forEach(function (element) {
-          element.textContent = String(counts[element.dataset.count] || 0);
+        quickTabs.replaceChildren();
+        legend.replaceChildren();
+        if (!hasCategories) return;
+
+        quickTabs.append(createCategoryTab('all', 'All', counts.all));
+        categories.forEach(function (category) {
+          const config = CATEGORY_CONFIG[category];
+          quickTabs.append(createCategoryTab(category, config.shortLabel, counts[category]));
+          const item = document.createElement('span');
+          const marker = document.createElement('i');
+          marker.style.background = config.color;
+          item.append(marker, document.createTextNode(config.shortLabel));
+          legend.append(item);
         });
       }
 
       function render() {
         if (!state.loaded) return;
-        updateCounts();
+        updateCategoryControls();
         const items = filteredGames();
         resultCount.textContent = String(items.length);
         if (items.length === 0) {
@@ -1698,24 +1754,7 @@
       document.querySelector('#resultSet').addEventListener('change', function (event) {
         state.dataset = event.target.value;
         state.category = 'all';
-        document.querySelectorAll('.tab').forEach(function (tab) {
-          const active = tab.dataset.category === 'all';
-          tab.classList.toggle('active', active);
-          tab.setAttribute('aria-selected', String(active));
-        });
         render();
-      });
-
-      document.querySelectorAll('.tab').forEach(function (tab) {
-        tab.addEventListener('click', function () {
-          state.category = tab.dataset.category;
-          document.querySelectorAll('.tab').forEach(function (item) {
-            const active = item === tab;
-            item.classList.toggle('active', active);
-            item.setAttribute('aria-selected', String(active));
-          });
-          render();
-        });
       });
 
       document.querySelectorAll('[data-view]').forEach(function (button) {

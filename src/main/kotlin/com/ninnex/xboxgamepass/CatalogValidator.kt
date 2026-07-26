@@ -13,7 +13,11 @@ object CatalogValidator {
         CatalogInfoWriter.parse(info.content)
     }
 
-    fun validateCsv(fileName: String, content: String) {
+    fun validateCsv(
+        fileName: String,
+        content: String,
+        allowLegacyClassifiedFormat: Boolean = false,
+    ) {
         require(fileName in AppConfig.expectedCsvFileNames) { "Unexpected CSV file: $fileName" }
         require(!content.startsWith('\uFEFF')) { "$fileName must not contain a UTF-8 BOM." }
         require('\r' !in content) { "$fileName must use LF line endings only." }
@@ -21,7 +25,12 @@ object CatalogValidator {
 
         val rows = CsvReader.parse(content)
         require(rows.size >= 2) { "$fileName is empty." }
-        val processed = fileName in setOf("ultimate-no-premium.csv", "ultimate-exclusive.csv")
+        val classified = fileName in AppConfig.CLASSIFIED_CSV_FILE_NAMES
+        val legacyClassified =
+            classified &&
+                allowLegacyClassifiedFormat &&
+                rows.first() == CsvWriter.sourceHeaders
+        val processed = classified && !legacyClassified
         val headers = if (processed) CsvWriter.processedHeaders else CsvWriter.sourceHeaders
         require(rows.first() == headers) { "$fileName has an invalid header." }
 

@@ -43,6 +43,9 @@ class CsvWriterTest {
             ubisoftPlus = listOf(game("Ubisoft")),
         )
         val processed = ProcessedCatalogs(
+            ultimate = listOf(processed("Ultimate")),
+            premium = listOf(processed("Premium", AppConfig.PREMIUM)),
+            essential = listOf(processed("Essential", AppConfig.ESSENTIAL)),
             ultimateNoPremium = listOf(processed("Ultimate")),
             ultimateExclusive = listOf(processed("Ultimate")),
         )
@@ -59,18 +62,27 @@ class CsvWriterTest {
             ),
             CsvWriter.createFiles(catalogs, processed).map { it.name },
         )
+        assertTrue(
+            CsvWriter.createFiles(catalogs, processed)
+                .first { it.name == "ultimate.csv" }
+                .content
+                .startsWith("name,productId,console,pc,category,storePath,newSinceDate\n"),
+        )
     }
 
     private fun game(name: String): GameRow =
         GameRow(name, "9TEST0000000", true, false, "game/9TEST0000000")
 
-    private fun processed(name: String): ProcessedGameRow =
+    private fun processed(
+        name: String,
+        category: String = AppConfig.ULTIMATE_EXCLUSIVE,
+    ): ProcessedGameRow =
         ProcessedGameRow(
             name,
             "9TEST0000000",
             true,
             false,
-            AppConfig.ULTIMATE_EXCLUSIVE,
+            category,
             "game/9TEST0000000",
         )
 }

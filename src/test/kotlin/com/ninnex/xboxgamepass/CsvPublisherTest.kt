@@ -48,14 +48,6 @@ class CsvPublisherTest {
 
     private fun expectedFiles(name: String): List<GeneratedFile> {
         val game = GameRow(name, "9TEST0000000", true, false, "game/9TEST0000000")
-        val processed = ProcessedGameRow(
-            name,
-            game.productId,
-            true,
-            false,
-            AppConfig.ULTIMATE_EXCLUSIVE,
-            game.storePath,
-        )
         val catalogs = Catalogs(
             ultimate = listOf(game),
             premium = listOf(game.copy(name = "Premium")),
@@ -65,7 +57,7 @@ class CsvPublisherTest {
         )
         val csvFiles = CsvWriter.createFiles(
             catalogs,
-            ProcessedCatalogs(listOf(processed), listOf(processed)),
+            CatalogProcessor.buildProcessedRows(catalogs),
         )
         val info = CatalogInfo(
             AppConfig.XBOX_STORE_BASE_URL,

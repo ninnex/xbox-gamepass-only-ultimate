@@ -74,13 +74,13 @@ The visible timestamp comes from `catalog-info.json:lastCheckedAt` and therefore
 
 | File | Columns | Purpose |
 | --- | --- | --- |
-| `data/ultimate.csv` | `name,productId,console,pc,storePath,newSinceDate` | Full Ultimate source catalog |
-| `data/premium.csv` | `name,productId,console,pc,storePath,newSinceDate` | Full Premium source catalog |
-| `data/essential.csv` | `name,productId,console,pc,storePath,newSinceDate` | Full Essential source catalog |
+| `data/ultimate.csv` | `name,productId,console,pc,category,storePath,newSinceDate` | Full Ultimate catalog, classified by minimum access tier or bundled source |
+| `data/premium.csv` | `name,productId,console,pc,category,storePath,newSinceDate` | Full Premium catalog, classified as Essential or Premium |
+| `data/essential.csv` | `name,productId,console,pc,category,storePath,newSinceDate` | Full Essential catalog, classified as Essential |
 | `data/ea-play.csv` | `name,productId,console,pc,storePath,newSinceDate` | Full EA Play source catalog |
 | `data/ubisoft-plus.csv` | `name,productId,console,pc,storePath,newSinceDate` | Full Ubisoft+ Classics source catalog |
 | `data/ultimate-no-premium.csv` | `name,productId,console,pc,category,storePath,newSinceDate` | Ultimate minus Premium, classified by source |
-| `data/ultimate-exclusive.csv` | `name,productId,console,pc,category,storePath,newSinceDate` | Ultimate minus Premium, EA Play, and Ubisoft+ Classics |
+| `data/ultimate-exclusive.csv` | `name,productId,console,pc,category,storePath,newSinceDate` | Ultimate games outside Premium, EA Play, and Ubisoft+ Classics |
 | `data/catalog-info.json` | Common JSON configuration | Store base URL, new-game display duration, last successful check, and CSV change result |
 
 All CSV files use UTF-8 without BOM, LF (`\n`) line endings, lowercase `true`/`false` values, and English catalog titles and category values. `storePath` comes from structured Xbox product metadata when available; otherwise it is the official `-/PRODUCT_ID` route. Every path ends in the uppercase Product ID. `newSinceDate` is empty for the migration baseline; later additions use `YYYY-MM-DD` and retain their first-seen date while they remain in that specific list.
@@ -91,4 +91,5 @@ All CSV files use UTF-8 without BOM, LF (`\n`) line endings, lowercase `true`/`f
 - Language: English (`en-us`)
 - Platforms: Windows PC, Xbox One, and Xbox Series X|S
 - Name matching: exact `ProductTitle`; no title normalization
-- Category priority: `EA Play`, then `Ubisoft+ Classics`, then `Ultimate Exclusive`
+- Full Ultimate category priority: `Essential`, `Premium`, `EA Play`, `Ubisoft+ Classics`, then `Ultimate Exclusive`
+- Ultimate-minus-Premium category priority: `EA Play`, then `Ubisoft+ Classics`, then `Ultimate Exclusive`

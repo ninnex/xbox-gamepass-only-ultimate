@@ -29,7 +29,7 @@ object CatalogHistory {
 
         fun previousDates(fileName: String): Map<String, String> {
             val content = Files.readString(outputDirectory.resolve(fileName), StandardCharsets.UTF_8)
-            CatalogValidator.validateCsv(fileName, content)
+            CatalogValidator.validateCsv(fileName, content, allowLegacyClassifiedFormat = true)
             return CsvReader.parse(content).drop(1).associate { row -> row[1] to row.last() }
         }
 
@@ -59,6 +59,9 @@ object CatalogHistory {
                 ubisoftPlus = catalogs.ubisoftPlus.map { it.copy(newSinceDate = "") },
             ),
             processed = processed.copy(
+                ultimate = dateProcessedRows("ultimate.csv", processed.ultimate),
+                premium = dateProcessedRows("premium.csv", processed.premium),
+                essential = dateProcessedRows("essential.csv", processed.essential),
                 ultimateNoPremium = dateProcessedRows(
                     "ultimate-no-premium.csv",
                     processed.ultimateNoPremium,
@@ -97,6 +100,7 @@ object CatalogHistory {
                 CatalogValidator.validateCsv(
                     fileName,
                     Files.readString(outputDirectory.resolve(fileName), StandardCharsets.UTF_8),
+                    allowLegacyClassifiedFormat = true,
                 )
             }
             return false
@@ -134,6 +138,9 @@ object CatalogHistory {
     )
 
     private fun ProcessedCatalogs.clearNewSinceDates(): ProcessedCatalogs = copy(
+        ultimate = ultimate.map { it.copy(newSinceDate = "") },
+        premium = premium.map { it.copy(newSinceDate = "") },
+        essential = essential.map { it.copy(newSinceDate = "") },
         ultimateNoPremium = ultimateNoPremium.map { it.copy(newSinceDate = "") },
         ultimateExclusive = ultimateExclusive.map { it.copy(newSinceDate = "") },
     )

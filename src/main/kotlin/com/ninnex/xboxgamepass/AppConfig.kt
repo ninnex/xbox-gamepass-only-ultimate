@@ -14,10 +14,25 @@ object AppConfig {
     const val XBOX_STORE_BASE_URL = "https://www.xbox.com/en-US/games/store/"
     const val NEW_GAME_DISPLAY_DAYS = 20
 
+    const val ESSENTIAL = "Essential"
+    const val PREMIUM = "Premium"
     const val EA_PLAY = "EA Play"
     const val UBISOFT_PLUS = "Ubisoft+ Classics"
     const val ULTIMATE_EXCLUSIVE = "Ultimate Exclusive"
-    val ALLOWED_CATEGORIES = setOf(EA_PLAY, UBISOFT_PLUS, ULTIMATE_EXCLUSIVE)
+    val ALLOWED_CATEGORIES = setOf(
+        ESSENTIAL,
+        PREMIUM,
+        EA_PLAY,
+        UBISOFT_PLUS,
+        ULTIMATE_EXCLUSIVE,
+    )
+    val CLASSIFIED_CSV_FILE_NAMES = setOf(
+        "ultimate.csv",
+        "premium.csv",
+        "essential.csv",
+        "ultimate-no-premium.csv",
+        "ultimate-exclusive.csv",
+    )
 
     val catalogs = listOf(
         CatalogDefinition(

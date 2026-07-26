@@ -57,6 +57,9 @@ data class Catalogs(
 )
 
 data class ProcessedCatalogs(
+    val ultimate: List<ProcessedGameRow>,
+    val premium: List<ProcessedGameRow>,
+    val essential: List<ProcessedGameRow>,
     val ultimateNoPremium: List<ProcessedGameRow>,
     val ultimateExclusive: List<ProcessedGameRow>,
 )

@@ -53,10 +53,40 @@ object CatalogProcessor {
     }
 
     fun buildProcessedRows(catalogs: Catalogs): ProcessedCatalogs {
+        val essentialNames = catalogs.essential.mapTo(hashSetOf()) { it.name }
         val premiumNames = catalogs.premium.mapTo(hashSetOf()) { it.name }
         val eaPlayNames = catalogs.eaPlay.mapTo(hashSetOf()) { it.name }
         val ubisoftPlusNames = catalogs.ubisoftPlus.mapTo(hashSetOf()) { it.name }
 
+        fun processed(game: GameRow, category: String) = ProcessedGameRow(
+            name = game.name,
+            productId = game.productId,
+            console = game.console,
+            pc = game.pc,
+            category = category,
+            storePath = game.storePath,
+            newSinceDate = game.newSinceDate,
+        )
+
+        val ultimate = catalogs.ultimate.map { game ->
+            val category = when {
+                game.name in essentialNames -> AppConfig.ESSENTIAL
+                game.name in premiumNames -> AppConfig.PREMIUM
+                game.name in eaPlayNames -> AppConfig.EA_PLAY
+                game.name in ubisoftPlusNames -> AppConfig.UBISOFT_PLUS
+                else -> AppConfig.ULTIMATE_EXCLUSIVE
+            }
+            processed(game, category)
+        }
+        val premium = catalogs.premium.map { game ->
+            processed(
+                game,
+                if (game.name in essentialNames) AppConfig.ESSENTIAL else AppConfig.PREMIUM,
+            )
+        }
+        val essential = catalogs.essential.map { game ->
+            processed(game, AppConfig.ESSENTIAL)
+        }
         val ultimateNoPremium = catalogs.ultimate
             .asSequence()
             .filterNot { it.name in premiumNames }
@@ -66,19 +96,14 @@ object CatalogProcessor {
                     game.name in ubisoftPlusNames -> AppConfig.UBISOFT_PLUS
                     else -> AppConfig.ULTIMATE_EXCLUSIVE
                 }
-                ProcessedGameRow(
-                    name = game.name,
-                    productId = game.productId,
-                    console = game.console,
-                    pc = game.pc,
-                    category = category,
-                    storePath = game.storePath,
-                    newSinceDate = game.newSinceDate,
-                )
+                processed(game, category)
             }
             .toList()
 
         return ProcessedCatalogs(
+            ultimate = ultimate,
+            premium = premium,
+            essential = essential,
             ultimateNoPremium = ultimateNoPremium,
             ultimateExclusive = ultimateNoPremium.filter {
                 it.category == AppConfig.ULTIMATE_EXCLUSIVE
@@ -109,10 +134,45 @@ object CatalogProcessor {
         require(processed.ultimateNoPremium.isNotEmpty()) { "ultimate-no-premium is empty." }
         require(processed.ultimateExclusive.isNotEmpty()) { "ultimate-exclusive is empty." }
 
+        val essentialNames = catalogs.essential.mapTo(hashSetOf()) { it.name }
         val premiumNames = catalogs.premium.mapTo(hashSetOf()) { it.name }
         val eaPlayNames = catalogs.eaPlay.mapTo(hashSetOf()) { it.name }
         val ubisoftPlusNames = catalogs.ubisoftPlus.mapTo(hashSetOf()) { it.name }
         val ultimateByName = catalogs.ultimate.associateBy { it.name }
+
+        fun validateClassifiedRows(
+            label: String,
+            rows: List<ProcessedGameRow>,
+            sourceRows: List<GameRow>,
+            expectedCategory: (String) -> String,
+        ) {
+            require(rows.size == sourceRows.size) { "$label classification size does not match its source." }
+            require(rows.zip(sourceRows).all { (row, source) ->
+                row.name == source.name &&
+                    row.productId == source.productId &&
+                    row.console == source.console &&
+                    row.pc == source.pc &&
+                    row.category == expectedCategory(row.name) &&
+                    row.storePath == source.storePath &&
+                    row.newSinceDate == source.newSinceDate
+            }) { "$label classification does not match its source catalog." }
+        }
+
+        validateClassifiedRows("ultimate", processed.ultimate, catalogs.ultimate) { name ->
+            when {
+                name in essentialNames -> AppConfig.ESSENTIAL
+                name in premiumNames -> AppConfig.PREMIUM
+                name in eaPlayNames -> AppConfig.EA_PLAY
+                name in ubisoftPlusNames -> AppConfig.UBISOFT_PLUS
+                else -> AppConfig.ULTIMATE_EXCLUSIVE
+            }
+        }
+        validateClassifiedRows("premium", processed.premium, catalogs.premium) { name ->
+            if (name in essentialNames) AppConfig.ESSENTIAL else AppConfig.PREMIUM
+        }
+        validateClassifiedRows("essential", processed.essential, catalogs.essential) {
+            AppConfig.ESSENTIAL
+        }
 
         require(processed.ultimateNoPremium.map { it.name }.toSet().size == processed.ultimateNoPremium.size) {
             "ultimate-no-premium contains duplicate exact names."

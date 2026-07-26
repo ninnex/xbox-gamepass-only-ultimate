@@ -19,16 +19,32 @@ class CatalogValidatorTest {
 
     @Test
     fun `rejects invalid dates booleans and store paths`() {
-        val header = "name,productId,console,pc,storePath,newSinceDate\n"
+        val header = "name,productId,console,pc,category,storePath,newSinceDate\n"
         val invalidRows = listOf(
-            "Game,9TEST0000000,yes,false,game/9TEST0000000,\n",
-            "Game,9TEST0000000,true,false,https://www.xbox.com/game,2026-07-25\n",
-            "Game,9TEST0000000,true,false,game/9TEST0000000,2026-02-30\n",
+            "Game,9TEST0000000,yes,false,Essential,game/9TEST0000000,\n",
+            "Game,9TEST0000000,true,false,Essential,https://www.xbox.com/game,2026-07-25\n",
+            "Game,9TEST0000000,true,false,Essential,game/9TEST0000000,2026-02-30\n",
         )
         invalidRows.forEach { row ->
             assertFailsWith<IllegalArgumentException> {
                 CatalogValidator.validateCsv("ultimate.csv", header + row)
             }
         }
+    }
+
+    @Test
+    fun `accepts the previous source format only for classified migration reads`() {
+        val legacy = CsvWriter.sourceCsv(
+            listOf(GameRow("Game", "9TEST0000000", true, false, "game/9TEST0000000")),
+        )
+
+        assertFailsWith<IllegalArgumentException> {
+            CatalogValidator.validateCsv("ultimate.csv", legacy)
+        }
+        CatalogValidator.validateCsv(
+            "ultimate.csv",
+            legacy,
+            allowLegacyClassifiedFormat = true,
+        )
     }
 }

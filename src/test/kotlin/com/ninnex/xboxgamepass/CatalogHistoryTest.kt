@@ -10,10 +10,10 @@ import kotlin.test.assertTrue
 class CatalogHistoryTest {
     @Test
     fun `empty publication establishes a baseline without new dates`() {
-        val root = Files.createTempDirectory("history-baseline-")
+            val root = Files.createTempDirectory("history-baseline-")
         try {
             val catalogs = catalogs("2026-07-01")
-            val processed = processed(catalogs.ultimate.single(), "2026-07-01")
+            val processed = processed(catalogs, "2026-07-01")
 
             val result = CatalogHistory.applyNewSinceDates(
                 root.resolve("missing"),
@@ -32,10 +32,10 @@ class CatalogHistoryTest {
 
     @Test
     fun `preserves existing dates and dates additions independently by list`() {
-        val root = Files.createTempDirectory("history-current-")
+            val root = Files.createTempDirectory("history-current-")
         try {
             val previousCatalogs = catalogs("2026-07-01")
-            val previousProcessed = processed(previousCatalogs.ultimate.single(), "2026-07-03")
+            val previousProcessed = processed(previousCatalogs, "2026-07-03")
             CsvWriter.createFiles(previousCatalogs, previousProcessed).forEach { file ->
                 Files.writeString(root.resolve(file.name), file.content)
             }
@@ -47,6 +47,16 @@ class CatalogHistoryTest {
                 essential = previousCatalogs.essential.map { it.copy(newSinceDate = "") },
             )
             val candidateProcessed = ProcessedCatalogs(
+                ultimate = listOf(
+                    processedRow(previousCatalogs.ultimate.single()),
+                    processedRow(added),
+                ),
+                premium = listOf(
+                    processedRow(previousCatalogs.premium.single(), AppConfig.PREMIUM),
+                ),
+                essential = listOf(
+                    processedRow(previousCatalogs.essential.single(), AppConfig.ESSENTIAL),
+                ),
                 ultimateNoPremium = listOf(
                     processedRow(previousCatalogs.ultimate.single()),
                     processedRow(added),
@@ -78,7 +88,7 @@ class CatalogHistoryTest {
         val root = Files.createTempDirectory("history-changes-")
         try {
             val catalogs = catalogs("")
-            val processed = processed(catalogs.ultimate.single(), "")
+            val processed = processed(catalogs, "")
             val files = CsvWriter.createFiles(catalogs, processed)
             files.forEach { Files.writeString(root.resolve(it.name), it.content) }
 
@@ -96,6 +106,41 @@ class CatalogHistoryTest {
         }
     }
 
+    @Test
+    fun `migrates classified catalogs from the previous source schema without losing dates`() {
+        val root = Files.createTempDirectory("history-schema-migration-")
+        try {
+            val previousCatalogs = catalogs("2026-07-01")
+            val previousProcessed = processed(previousCatalogs, "2026-07-03")
+            CsvWriter.createFiles(previousCatalogs, previousProcessed).forEach { file ->
+                val content = when (file.name) {
+                    "ultimate.csv" -> CsvWriter.sourceCsv(previousCatalogs.ultimate)
+                    "premium.csv" -> CsvWriter.sourceCsv(previousCatalogs.premium)
+                    "essential.csv" -> CsvWriter.sourceCsv(previousCatalogs.essential)
+                    else -> file.content
+                }
+                Files.writeString(root.resolve(file.name), content)
+            }
+
+            val candidateCatalogs = catalogs("")
+            val candidateProcessed = CatalogProcessor.buildProcessedRows(candidateCatalogs)
+            val result = CatalogHistory.applyNewSinceDates(
+                root,
+                candidateCatalogs,
+                candidateProcessed,
+                LocalDate.parse("2026-07-25"),
+            )
+
+            assertFalse(result.migrationBaseline)
+            assertEquals("2026-07-01", result.processed.ultimate.single().newSinceDate)
+            assertEquals("2026-07-01", result.processed.premium.single().newSinceDate)
+            assertEquals("2026-07-01", result.processed.essential.single().newSinceDate)
+            assertEquals("2026-07-03", result.processed.ultimateNoPremium.single().newSinceDate)
+        } finally {
+            deleteRecursively(root)
+        }
+    }
+
     private fun catalogs(date: String): Catalogs = Catalogs(
         ultimate = listOf(game("Ultimate", "9ULTIMAT0001", date)),
         premium = listOf(game("Premium", "9PREMIUM0001", date)),
@@ -104,21 +149,33 @@ class CatalogHistoryTest {
         ubisoftPlus = listOf(game("Ubisoft", "9UBISOFT0001", date)),
     )
 
-    private fun processed(game: GameRow, date: String): ProcessedCatalogs {
-        val row = processedRow(game).copy(newSinceDate = date)
-        return ProcessedCatalogs(listOf(row), listOf(row))
-    }
+    private fun processed(catalogs: Catalogs, differenceDate: String): ProcessedCatalogs =
+        ProcessedCatalogs(
+            ultimate = listOf(processedRow(catalogs.ultimate.single())),
+            premium = listOf(processedRow(catalogs.premium.single(), AppConfig.PREMIUM)),
+            essential = listOf(processedRow(catalogs.essential.single(), AppConfig.ESSENTIAL)),
+            ultimateNoPremium = listOf(
+                processedRow(catalogs.ultimate.single()).copy(newSinceDate = differenceDate),
+            ),
+            ultimateExclusive = listOf(
+                processedRow(catalogs.ultimate.single()).copy(newSinceDate = differenceDate),
+            ),
+        )
 
     private fun game(name: String, id: String, date: String = "") =
         GameRow(name, id, true, false, "game/$id", date)
 
-    private fun processedRow(game: GameRow) = ProcessedGameRow(
+    private fun processedRow(
+        game: GameRow,
+        category: String = AppConfig.ULTIMATE_EXCLUSIVE,
+    ) = ProcessedGameRow(
         game.name,
         game.productId,
         game.console,
         game.pc,
-        AppConfig.ULTIMATE_EXCLUSIVE,
+        category,
         game.storePath,
+        game.newSinceDate,
     )
 
     private fun deleteRecursively(root: java.nio.file.Path) {

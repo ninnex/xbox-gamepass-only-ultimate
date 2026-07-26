@@ -64,9 +64,9 @@ object CsvWriter {
     }
 
     fun createFiles(catalogs: Catalogs, processed: ProcessedCatalogs): List<GeneratedFile> = listOf(
-        GeneratedFile("ultimate.csv", sourceCsv(catalogs.ultimate)),
-        GeneratedFile("premium.csv", sourceCsv(catalogs.premium)),
-        GeneratedFile("essential.csv", sourceCsv(catalogs.essential)),
+        GeneratedFile("ultimate.csv", processedCsv(processed.ultimate)),
+        GeneratedFile("premium.csv", processedCsv(processed.premium)),
+        GeneratedFile("essential.csv", processedCsv(processed.essential)),
         GeneratedFile("ea-play.csv", sourceCsv(catalogs.eaPlay)),
         GeneratedFile("ubisoft-plus.csv", sourceCsv(catalogs.ubisoftPlus)),
         GeneratedFile("ultimate-no-premium.csv", processedCsv(processed.ultimateNoPremium)),
