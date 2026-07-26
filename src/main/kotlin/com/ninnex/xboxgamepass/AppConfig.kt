@@ -8,8 +8,6 @@ object AppConfig {
     const val SIGL_ENDPOINT = "https://catalog.gamepass.com/sigls/v3"
     const val PRODUCTS_ENDPOINT = "https://displaycatalog.mp.microsoft.com/v7.0/products"
     const val MS_CV = "DGU1mcuYo0WMMp+F.1"
-    const val PRODUCT_BATCH_SIZE = 20
-    const val PRODUCT_CONCURRENCY = 4
     const val REQUEST_ATTEMPTS = 3
     val REQUEST_TIMEOUT: Duration = Duration.ofSeconds(60)
 

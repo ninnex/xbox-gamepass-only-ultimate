@@ -10,9 +10,6 @@ import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.nio.charset.StandardCharsets
 import java.util.Locale
-import java.util.concurrent.Callable
-import java.util.concurrent.ExecutionException
-import java.util.concurrent.Executors
 
 class XboxClient(
     private val objectMapper: ObjectMapper = ObjectMapper(),
@@ -55,30 +52,26 @@ class XboxClient(
 
     fun loadProducts(productIds: List<String>): Map<String, ProductMetadata> {
         val uniqueIds = productIds.mapTo(linkedSetOf()) { it.uppercase(Locale.ROOT) }.toList()
-        val batches = uniqueIds.chunked(AppConfig.PRODUCT_BATCH_SIZE)
+        check(uniqueIds.isNotEmpty()) { "No Product IDs were supplied." }
         println(
-            "[Phase B] Resolving ${uniqueIds.size} unique products in ${batches.size} batches.",
+            "[Phase B] Resolving ${uniqueIds.size} unique products in one Display Catalog request.",
         )
 
         val resolvedProducts = linkedMapOf<String, ResolvedProduct>()
-        loadBatches(batches, retry = false).flatten().forEach { product ->
+        loadProductSet(uniqueIds).forEach { product ->
             addResolvedProduct(resolvedProducts, product)
         }
 
-        var missingIds = uniqueIds.filterNot(resolvedProducts::containsKey)
-        if (missingIds.isNotEmpty()) {
-            System.err.println(
-                "[Phase B] Retrying ${missingIds.size} products that were not resolved.",
-            )
-            loadBatches(missingIds.chunked(AppConfig.PRODUCT_BATCH_SIZE), retry = true)
-                .flatten()
-                .forEach { product -> addResolvedProduct(resolvedProducts, product) }
-            missingIds = uniqueIds.filterNot(resolvedProducts::containsKey)
-        }
-
+        val requestedIds = uniqueIds.toSet()
+        val missingIds = requestedIds - resolvedProducts.keys
+        val unexpectedIds = resolvedProducts.keys - requestedIds
         check(missingIds.isEmpty()) {
             "${missingIds.size} products could not be resolved. No files were written. " +
                 "Missing IDs: ${missingIds.take(20).joinToString(", ")}"
+        }
+        check(unexpectedIds.isEmpty()) {
+            "Display Catalog returned ${unexpectedIds.size} unexpected products. No files were written. " +
+                "Unexpected IDs: ${unexpectedIds.take(20).joinToString(", ")}"
         }
 
         val storePathCount = resolvedProducts.values.count { it.storePath != null }
@@ -89,27 +82,7 @@ class XboxClient(
         return resolveStorePaths(resolvedProducts)
     }
 
-    private fun loadBatches(batches: List<List<String>>, retry: Boolean): List<List<JsonNode>> {
-        if (batches.isEmpty()) return emptyList()
-        val executor = Executors.newFixedThreadPool(minOf(AppConfig.PRODUCT_CONCURRENCY, batches.size))
-        return try {
-            val futures = batches.mapIndexed { index, ids ->
-                val label = if (retry) "retry-${index + 1}" else "${index + 1}"
-                executor.submit(Callable { loadProductBatch(ids, label) })
-            }
-            futures.map { future ->
-                try {
-                    future.get()
-                } catch (error: ExecutionException) {
-                    throw (error.cause as? Exception ?: error)
-                }
-            }
-        } finally {
-            executor.shutdownNow()
-        }
-    }
-
-    private fun loadProductBatch(ids: List<String>, batchLabel: String): List<JsonNode> {
+    private fun loadProductSet(ids: List<String>): List<JsonNode> {
         val data = fetchJson(
             buildUri(
                 AppConfig.PRODUCTS_ENDPOINT,
@@ -120,10 +93,10 @@ class XboxClient(
                     "MS-CV" to AppConfig.MS_CV,
                 ),
             ),
-            "product batch $batchLabel",
+            "complete product set",
         )
         val products = data.get("Products")
-        check(products?.isArray == true) { "Product batch $batchLabel has an invalid response." }
+        check(products?.isArray == true) { "Display Catalog has an invalid response." }
         return products.toList()
     }
 

@@ -38,7 +38,7 @@ The default output directory is `data/`. A different output directory can be sup
 ./mvnw --batch-mode exec:java -Dexec.args="build/generated-data"
 ```
 
-The program obtains every catalog and its product metadata, resolves an official Xbox Store URL for every Product ID, preserves per-list new-game dates, and validates the complete candidate set before replacing any published data. It never requests an individual Xbox Store page: when structured product metadata has no Store URL, it uses the official `-/PRODUCT_ID` route directly. ICU4J supplies the `en-US` collation used to reproduce Phase A JavaScript ordering.
+The program queries the ten configured SIGL catalog sources and resolves their complete set of unique Product IDs in one Display Catalog request. It resolves an official Xbox Store URL for every Product ID, preserves per-list new-game dates, and validates the complete candidate set before replacing any published data. It never requests an individual Xbox Store page: when structured product metadata has no Store URL, it uses the official `-/PRODUCT_ID` route directly. ICU4J supplies the `en-US` collation used to reproduce Phase A JavaScript ordering.
 
 To generate into a candidate directory while comparing against the currently published baseline:
 
