@@ -6,6 +6,14 @@ import kotlin.test.assertFailsWith
 
 class StorePathTest {
     @Test
+    fun `builds a validated official fallback route from any Product ID`() {
+        val storePath = StorePath.fromProductId("9test0000000")
+
+        assertEquals("-/9TEST0000000", storePath)
+        StorePath.validate(storePath, "9TEST0000000")
+    }
+
+    @Test
     fun `extracts canonical store path and uppercases Product ID`() {
         assertEquals(
             "doom-the-dark-ages/9PH9X076T3Q4",

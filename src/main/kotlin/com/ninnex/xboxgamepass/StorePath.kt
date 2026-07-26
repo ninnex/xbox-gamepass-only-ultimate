@@ -7,6 +7,12 @@ object StorePath {
     private const val STORE_MARKER = "/games/store/"
     private val productIdPattern = Regex("[A-Z0-9]{12}")
 
+    fun fromProductId(productId: String): String {
+        val normalized = productId.trim().uppercase(Locale.ROOT)
+        require(productIdPattern.matches(normalized)) { "Invalid Product ID: $productId" }
+        return "-/$normalized"
+    }
+
     fun fromOfficialUrl(url: String, expectedProductId: String): String {
         val expected = expectedProductId.trim().uppercase(Locale.ROOT)
         require(productIdPattern.matches(expected)) { "Invalid expected Product ID: $expectedProductId" }
