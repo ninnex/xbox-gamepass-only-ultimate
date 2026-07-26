@@ -545,10 +545,12 @@
         overflow: hidden;
         border-radius: 10px;
         color: white;
+        cursor: pointer;
         font-size: 11px;
         font-weight: 800;
         letter-spacing: 0.04em;
         box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.15);
+        text-decoration: none;
       }
 
       .art-0 { background: linear-gradient(145deg, #36584d, #101b18); }
@@ -578,6 +580,7 @@
         display: block;
         overflow: hidden;
         color: var(--text-strong);
+        cursor: pointer;
         font-size: 15px;
         font-weight: 720;
         text-decoration: none;
@@ -585,8 +588,8 @@
       }
 
       .game-name:hover {
-        color: var(--green);
-        text-decoration: underline;
+        color: var(--text-strong);
+        text-decoration: none;
       }
 
       .game-note {
@@ -628,8 +631,8 @@
       }
 
       .badge-ubisoft {
-        color: var(--violet);
-        background: var(--violet-soft);
+        color: var(--rose);
+        background: var(--rose-soft);
       }
 
       .badge-essential {
@@ -638,8 +641,8 @@
       }
 
       .badge-premium {
-        color: var(--rose);
-        background: var(--rose-soft);
+        color: var(--violet);
+        background: var(--violet-soft);
       }
 
       .new-game-badge {
@@ -1501,11 +1504,15 @@
         return Math.abs(hash) % 10;
       }
 
-      function createArt(game) {
-        const art = document.createElement('div');
+      function createArt(game, storeUrl) {
+        const art = document.createElement('a');
         art.className = 'game-art art-' + artIndex(game.name);
         art.textContent = initials(game.name);
-        art.setAttribute('aria-hidden', 'true');
+        art.href = storeUrl;
+        art.target = '_blank';
+        art.rel = 'noopener noreferrer';
+        art.title = game.name;
+        art.setAttribute('aria-label', 'Open ' + game.name + ' in the Xbox Store');
         return art;
       }
 
@@ -1528,7 +1535,8 @@
       function createGameIdentity(game) {
         const wrapper = document.createElement('div');
         wrapper.className = 'game';
-        wrapper.append(createArt(game));
+        const storeUrl = new URL(game.storePath, state.catalogInfo.xboxStoreBaseUrl).toString();
+        wrapper.append(createArt(game, storeUrl));
 
         const copy = document.createElement('div');
         copy.className = 'game-copy';
@@ -1538,7 +1546,7 @@
         name.className = 'game-name';
         name.textContent = game.name;
         name.title = game.name;
-        name.href = new URL(game.storePath, state.catalogInfo.xboxStoreBaseUrl).toString();
+        name.href = storeUrl;
         name.target = '_blank';
         name.rel = 'noopener noreferrer';
         titleRow.append(name);
