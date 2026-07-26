@@ -367,8 +367,6 @@
         visibility: hidden;
       }
 
-      .result-set-control:hover .filter-tooltip,
-      .result-set-control:focus-within .filter-tooltip,
       .filter-tooltip.is-open {
         opacity: 1;
         transform: translateY(0);
@@ -726,8 +724,8 @@
         flex: 0 0 auto;
         border-radius: 999px;
         padding: 4px 7px;
-        color: #7a3d00;
-        background: #fff0c2;
+        color: #047857;
+        background: #a7f3d0;
         font-size: 10px;
         font-weight: 800;
         letter-spacing: 0.02em;
@@ -735,8 +733,8 @@
       }
 
       [data-theme="dark"] .new-game-badge {
-        color: #ffd38a;
-        background: #4d3108;
+        color: #6ee7b7;
+        background: #064e3b;
       }
 
       .check,
@@ -1663,7 +1661,7 @@
       function createNewGameBadge() {
         const badge = document.createElement('span');
         badge.className = 'new-game-badge';
-        badge.textContent = 'New game';
+        badge.textContent = 'New';
         return badge;
       }
 
@@ -1898,21 +1896,33 @@
         state.dataset = event.target.value;
         state.category = 'all';
         updateFilterExplanation();
+        closeResultSetTooltip();
         render();
       });
 
+      function closeResultSetTooltip() {
+        resultSetInfo.setAttribute('aria-expanded', 'false');
+        resultSetTooltip.classList.remove('is-open');
+        resultSetInfo.blur();
+      }
+
       resultSetInfo.addEventListener('click', function () {
         const isOpen = resultSetInfo.getAttribute('aria-expanded') === 'true';
-        resultSetInfo.setAttribute('aria-expanded', String(!isOpen));
-        resultSetTooltip.classList.toggle('is-open', !isOpen);
+        if (isOpen) {
+          closeResultSetTooltip();
+          return;
+        }
+        resultSetInfo.setAttribute('aria-expanded', 'true');
+        resultSetTooltip.classList.add('is-open');
       });
 
       document.addEventListener('click', function (event) {
         if (!event.target.closest('.result-set-control')) {
-          resultSetInfo.setAttribute('aria-expanded', 'false');
-          resultSetTooltip.classList.remove('is-open');
+          closeResultSetTooltip();
         }
       });
+
+      window.addEventListener('scroll', closeResultSetTooltip, { passive: true });
 
       document.querySelectorAll('[data-view]').forEach(function (button) {
         button.addEventListener('click', function () {
