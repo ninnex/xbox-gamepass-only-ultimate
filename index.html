@@ -1406,9 +1406,8 @@
           return;
         }
 
-        generatedDate.textContent = 'Last catalog check ' + date.toLocaleString('en-US', {
-          dateStyle: 'medium',
-          timeStyle: 'short'
+        generatedDate.textContent = 'Last catalog check ' + date.toLocaleDateString('en-US', {
+          dateStyle: 'medium'
         });
         generatedDate.hidden = false;
       }
