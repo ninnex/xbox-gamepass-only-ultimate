@@ -3,7 +3,7 @@ name: Update catalogs and deploy Pages
 on:
   workflow_dispatch:
   schedule:
-    - cron: "30 4 * * *"
+    - cron: "30 2 * * *"
       timezone: "America/New_York"
 
 concurrency:
