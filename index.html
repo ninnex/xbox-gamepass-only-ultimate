@@ -300,6 +300,81 @@
         min-width: 0;
       }
 
+      .result-set-control {
+        position: relative;
+        display: flex;
+        flex: 0 1 230px;
+        align-items: center;
+        min-width: 174px;
+      }
+
+      .result-set-control .control {
+        width: 100%;
+        min-width: 0;
+        padding-left: 48px;
+      }
+
+      .filter-info-button {
+        position: absolute;
+        left: 10px;
+        display: grid;
+        width: 26px;
+        height: 26px;
+        padding: 0;
+        place-items: center;
+        border: 0;
+        border-radius: 50%;
+        background: transparent;
+        color: var(--muted);
+        cursor: help;
+      }
+
+      .filter-info-button:hover,
+      .filter-info-button[aria-expanded="true"] {
+        color: var(--green);
+        background: var(--green-soft);
+      }
+
+      .filter-info-button:focus-visible {
+        outline: 2px solid var(--green);
+        outline-offset: 2px;
+      }
+
+      .filter-info-button svg {
+        width: 17px;
+        height: 17px;
+      }
+
+      .filter-tooltip {
+        position: absolute;
+        z-index: 10;
+        top: calc(100% + 8px);
+        left: 0;
+        width: min(330px, calc(100vw - 32px));
+        padding: 11px 13px;
+        border: 1px solid var(--control-line);
+        border-radius: 10px;
+        background: var(--surface);
+        box-shadow: var(--shadow);
+        color: var(--text-body);
+        font-size: 12px;
+        font-weight: 500;
+        line-height: 1.45;
+        opacity: 0;
+        pointer-events: none;
+        transform: translateY(-4px);
+        transition: opacity 0.16s ease, transform 0.16s ease;
+        visibility: hidden;
+      }
+
+      .result-set-control:hover .filter-tooltip,
+      .result-set-control:focus-within .filter-tooltip,
+      .filter-tooltip.is-open {
+        opacity: 1;
+        transform: translateY(0);
+        visibility: visible;
+      }
+
       .quick-tabs {
         gap: 4px;
       }
@@ -889,6 +964,11 @@
           min-width: 140px;
         }
 
+        .result-set-control {
+          flex: 1 1 145px;
+          min-width: 140px;
+        }
+
         .search-box {
           order: -1;
           width: 100%;
@@ -1094,13 +1174,32 @@
 
       <section class="toolbar" aria-label="Catalog controls">
         <div class="filters">
-          <select id="resultSet" class="control" aria-label="Result set">
-            <option value="difference">Ultimate not Premium</option>
-            <option value="exclusive">Ultimate Exclusive</option>
-            <option value="ultimate">Ultimate</option>
-            <option value="premium">Premium</option>
-            <option value="essential">Essential</option>
-          </select>
+          <div class="result-set-control">
+            <select id="resultSet" class="control" aria-label="Result set">
+              <option value="difference">Ultimate not Premium</option>
+              <option value="exclusive">Ultimate Exclusive</option>
+              <option value="ultimate">Ultimate</option>
+              <option value="premium">Premium</option>
+              <option value="essential">Essential</option>
+            </select>
+            <button
+              id="resultSetInfo"
+              class="filter-info-button"
+              type="button"
+              aria-label="Explain selected catalog filter"
+              aria-controls="resultSetTooltip"
+              aria-expanded="false"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <circle cx="12" cy="12" r="9"></circle>
+                <path d="M12 10v6"></path>
+                <circle cx="12" cy="7" r="1" fill="currentColor" stroke="none"></circle>
+              </svg>
+            </button>
+            <span id="resultSetTooltip" class="filter-tooltip" role="tooltip">
+              Games in Ultimate that are not included with Premium.
+            </span>
+          </div>
           <label class="search-box">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
               <circle cx="11" cy="11" r="7"></circle>
@@ -1176,6 +1275,13 @@
         premium: 'Premium',
         essential: 'Essential'
       };
+      const FILTER_EXPLANATIONS = {
+        difference: 'Games in Ultimate that are not included with Premium. This can include EA Play, Ubisoft+ Classics, and Ultimate Exclusive titles.',
+        exclusive: 'Games included with Ultimate that are not part of Premium, EA Play, or Ubisoft+ Classics.',
+        ultimate: 'Every game currently included with Game Pass Ultimate.',
+        premium: 'Every game currently included with Game Pass Premium.',
+        essential: 'Every game currently included with Game Pass Essential.'
+      };
       const SOURCE_HEADERS = ['name', 'productId', 'console', 'pc', 'storePath', 'newSinceDate'];
       const PROCESSED_HEADERS = [
         'name',
@@ -1242,6 +1348,12 @@
       const quickTabs = document.querySelector('.quick-tabs');
       const legend = document.querySelector('.legend');
       const generatedDate = document.querySelector('#generated-date');
+      const resultSetInfo = document.querySelector('#resultSetInfo');
+      const resultSetTooltip = document.querySelector('#resultSetTooltip');
+
+      function updateFilterExplanation() {
+        resultSetTooltip.textContent = FILTER_EXPLANATIONS[state.dataset];
+      }
 
       function parseCsv(text) {
         const rows = [];
@@ -1785,7 +1897,21 @@
       document.querySelector('#resultSet').addEventListener('change', function (event) {
         state.dataset = event.target.value;
         state.category = 'all';
+        updateFilterExplanation();
         render();
+      });
+
+      resultSetInfo.addEventListener('click', function () {
+        const isOpen = resultSetInfo.getAttribute('aria-expanded') === 'true';
+        resultSetInfo.setAttribute('aria-expanded', String(!isOpen));
+        resultSetTooltip.classList.toggle('is-open', !isOpen);
+      });
+
+      document.addEventListener('click', function (event) {
+        if (!event.target.closest('.result-set-control')) {
+          resultSetInfo.setAttribute('aria-expanded', 'false');
+          resultSetTooltip.classList.remove('is-open');
+        }
       });
 
       document.querySelectorAll('[data-view]').forEach(function (button) {
@@ -1819,6 +1945,7 @@
       });
 
       applyTheme(document.documentElement.dataset.theme || 'dark');
+      updateFilterExplanation();
       loadCatalogs();
     </script>
   </body>
