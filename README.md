@@ -48,7 +48,7 @@ To generate into a candidate directory while comparing against the currently pub
 
 ## GitHub Actions automation
 
-The workflow at `.github/workflows/update-catalogs-and-pages.yml` can be started manually and is scheduled once a day at 3:30 a.m. in `America/New_York`. Scheduled runs add a random delay of 0 to 3,599 seconds; manual runs start immediately.
+The workflow at `.github/workflows/update-catalogs-and-pages.yml` can be started manually and is scheduled once a day at 4:30 a.m. in `America/New_York`. Scheduled runs add a random delay of 0 to 3,599 seconds; manual runs start immediately.
 
 Each run:
 
