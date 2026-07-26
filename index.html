@@ -373,6 +373,26 @@
         visibility: visible;
       }
 
+      .membership-tooltip {
+        position: fixed;
+        z-index: 20;
+        width: min(330px, calc(100vw - 24px));
+        padding: 11px 13px;
+        border: 1px solid var(--control-line);
+        border-radius: 10px;
+        background: var(--surface);
+        box-shadow: var(--shadow);
+        color: var(--text-body);
+        font-size: 12px;
+        font-weight: 500;
+        line-height: 1.45;
+        pointer-events: none;
+      }
+
+      .membership-tooltip[hidden] {
+        display: none;
+      }
+
       .quick-tabs {
         gap: 4px;
       }
@@ -676,13 +696,18 @@
       }
 
       .badge {
+        appearance: none;
         display: inline-flex;
         align-items: center;
         gap: 7px;
+        border: 0;
         border-radius: 999px;
         padding: 7px 10px;
+        font-family: inherit;
         font-size: 12px;
         font-weight: 750;
+        line-height: normal;
+        cursor: pointer;
       }
 
       .badge::before {
@@ -691,6 +716,11 @@
         border-radius: 50%;
         background: currentColor;
         content: "";
+      }
+
+      .badge:focus-visible {
+        outline: 2px solid currentColor;
+        outline-offset: 2px;
       }
 
       .badge-exclusive {
@@ -1254,6 +1284,8 @@
       </section>
     </main>
 
+    <div id="membershipTooltip" class="membership-tooltip" role="tooltip" hidden></div>
+
     <script>
       'use strict';
 
@@ -1279,6 +1311,13 @@
         ultimate: 'Every game currently included with Game Pass Ultimate.',
         premium: 'Every game currently included with Game Pass Premium.',
         essential: 'Every game currently included with Game Pass Essential.'
+      };
+      const CATEGORY_EXPLANATIONS = {
+        Essential: 'Included in Game Pass Ultimate, Premium, and Essential.',
+        Premium: 'Included in Game Pass Ultimate and Premium.',
+        'EA Play': 'Included in Game Pass Ultimate through EA Play.',
+        'Ubisoft+ Classics': 'Included in Game Pass Ultimate through Ubisoft+ Classics.',
+        'Ultimate Exclusive': 'Exclusive to Game Pass Ultimate; not part of Premium, Essential, EA Play, or Ubisoft+ Classics.'
       };
       const SOURCE_HEADERS = ['name', 'productId', 'console', 'pc', 'storePath', 'newSinceDate'];
       const PROCESSED_HEADERS = [
@@ -1348,6 +1387,8 @@
       const generatedDate = document.querySelector('#generated-date');
       const resultSetInfo = document.querySelector('#resultSetInfo');
       const resultSetTooltip = document.querySelector('#resultSetTooltip');
+      const membershipTooltip = document.querySelector('#membershipTooltip');
+      let activeMembershipBadge = null;
 
       function updateFilterExplanation() {
         resultSetTooltip.textContent = FILTER_EXPLANATIONS[state.dataset];
@@ -1693,8 +1734,6 @@
         if (game.category) {
           const category = createBadge(game.category);
           category.classList.add('mobile-category');
-          category.textContent = CATEGORY_CONFIG[game.category].shortLabel;
-          category.setAttribute('aria-label', game.category);
           meta.append(category);
         }
         copy.append(titleRow, meta);
@@ -1704,10 +1743,68 @@
 
       function createBadge(category) {
         const config = CATEGORY_CONFIG[category];
-        const badge = document.createElement('span');
+        const badge = document.createElement('button');
+        badge.type = 'button';
         badge.className = 'badge ' + config.badgeClass;
         badge.textContent = config.shortLabel;
+        badge.setAttribute('aria-label', config.shortLabel + ': show membership information');
+        badge.setAttribute('aria-controls', 'membershipTooltip');
+        badge.setAttribute('aria-expanded', 'false');
+        badge.addEventListener('click', function () {
+          toggleMembershipTooltip(badge, category);
+        });
         return badge;
+      }
+
+      function positionMembershipTooltip(badge) {
+        const gap = 8;
+        const viewportPadding = 12;
+        const badgeRect = badge.getBoundingClientRect();
+        const tooltipRect = membershipTooltip.getBoundingClientRect();
+        const maxLeft = window.innerWidth - tooltipRect.width - viewportPadding;
+        const maxTop = window.innerHeight - tooltipRect.height - viewportPadding;
+        let left = badgeRect.left + (badgeRect.width - tooltipRect.width) / 2;
+        let top = badgeRect.bottom + gap;
+
+        if (top > maxTop && badgeRect.top - tooltipRect.height - gap >= viewportPadding) {
+          top = badgeRect.top - tooltipRect.height - gap;
+        }
+
+        membershipTooltip.style.left =
+          Math.round(Math.max(viewportPadding, Math.min(left, maxLeft))) + 'px';
+        membershipTooltip.style.top =
+          Math.round(Math.max(viewportPadding, Math.min(top, maxTop))) + 'px';
+      }
+
+      function closeMembershipTooltip(blurTrigger) {
+        if (!activeMembershipBadge) return;
+        activeMembershipBadge.setAttribute('aria-expanded', 'false');
+        activeMembershipBadge.removeAttribute('aria-describedby');
+        if (blurTrigger && document.activeElement === activeMembershipBadge) {
+          activeMembershipBadge.blur();
+        }
+        activeMembershipBadge = null;
+        membershipTooltip.hidden = true;
+        membershipTooltip.textContent = '';
+      }
+
+      function openMembershipTooltip(badge, category) {
+        closeMembershipTooltip(false);
+        closeResultSetTooltip();
+        activeMembershipBadge = badge;
+        badge.setAttribute('aria-expanded', 'true');
+        badge.setAttribute('aria-describedby', 'membershipTooltip');
+        membershipTooltip.textContent = CATEGORY_EXPLANATIONS[category];
+        membershipTooltip.hidden = false;
+        positionMembershipTooltip(badge);
+      }
+
+      function toggleMembershipTooltip(badge, category) {
+        if (activeMembershipBadge === badge) {
+          closeMembershipTooltip(true);
+          return;
+        }
+        openMembershipTooltip(badge, category);
       }
 
       function createAvailability(available, platform) {
@@ -1857,6 +1954,7 @@
 
       function render() {
         if (!state.loaded) return;
+        closeMembershipTooltip(false);
         updateCategoryControls();
         const items = filteredGames();
         resultCount.textContent = String(items.length);
@@ -1912,6 +2010,7 @@
           closeResultSetTooltip();
           return;
         }
+        closeMembershipTooltip(false);
         resultSetInfo.setAttribute('aria-expanded', 'true');
         resultSetTooltip.classList.add('is-open');
       });
@@ -1920,9 +2019,30 @@
         if (!event.target.closest('.result-set-control')) {
           closeResultSetTooltip();
         }
+        if (!event.target.closest('.badge')) {
+          closeMembershipTooltip(false);
+        }
       });
 
-      window.addEventListener('scroll', closeResultSetTooltip, { passive: true });
+      window.addEventListener('scroll', function () {
+        closeResultSetTooltip();
+        closeMembershipTooltip(true);
+      }, { passive: true });
+
+      window.addEventListener('resize', function () {
+        closeResultSetTooltip();
+        closeMembershipTooltip(true);
+      });
+
+      document.addEventListener('keydown', function (event) {
+        if (event.key !== 'Escape') return;
+        closeResultSetTooltip();
+        if (activeMembershipBadge) {
+          const badge = activeMembershipBadge;
+          closeMembershipTooltip(false);
+          badge.focus();
+        }
+      });
 
       document.querySelectorAll('[data-view]').forEach(function (button) {
         button.addEventListener('click', function () {
