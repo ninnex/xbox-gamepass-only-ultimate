@@ -17,12 +17,13 @@ class CsvWriterTest {
     }
 
     @Test
-    fun `writes BOM CRLF headers and lowercase booleans`() {
-        val csv = CsvWriter.sourceCsv(listOf(GameRow("Game", console = true, pc = false)))
+    fun `writes UTF-8 contract with LF and no BOM`() {
+        val csv = CsvWriter.sourceCsv(listOf(game("Game")))
 
-        assertTrue(csv.startsWith("\uFEFFname,console,pc\r\n"))
-        assertTrue(csv.endsWith("Game,true,false\r\n"))
-        assertFalse(Regex("(?<!\\r)\\n").containsMatchIn(csv))
+        assertTrue(csv.startsWith("name,productId,console,pc,storePath,newSinceDate\n"))
+        assertTrue(csv.endsWith("Game,9TEST0000000,true,false,game/9TEST0000000,\n"))
+        assertFalse(csv.startsWith('\uFEFF'))
+        assertFalse('\r' in csv)
     }
 
     @Test
@@ -33,12 +34,13 @@ class CsvWriterTest {
     }
 
     @Test
-    fun `creates exactly the six output files in contract order`() {
+    fun `creates exactly seven CSV files in contract order`() {
         val catalogs = Catalogs(
-            ultimate = games("Ultimate"),
-            premium = games("Premium"),
-            eaPlay = games("EA"),
-            ubisoftPlus = games("Ubisoft"),
+            ultimate = listOf(game("Ultimate")),
+            premium = listOf(game("Premium")),
+            essential = listOf(game("Essential")),
+            eaPlay = listOf(game("EA")),
+            ubisoftPlus = listOf(game("Ubisoft")),
         )
         val processed = ProcessedCatalogs(
             ultimateNoPremium = listOf(processed("Ultimate")),
@@ -49,6 +51,7 @@ class CsvWriterTest {
             listOf(
                 "ultimate.csv",
                 "premium.csv",
+                "essential.csv",
                 "ea-play.csv",
                 "ubisoft-plus.csv",
                 "ultimate-no-premium.csv",
@@ -58,8 +61,16 @@ class CsvWriterTest {
         )
     }
 
-    private fun games(name: String) = listOf(GameRow(name, console = true, pc = false))
+    private fun game(name: String): GameRow =
+        GameRow(name, "9TEST0000000", true, false, "game/9TEST0000000")
 
-    private fun processed(name: String) =
-        ProcessedGameRow(name, console = true, pc = false, AppConfig.ULTIMATE_EXCLUSIVE)
+    private fun processed(name: String): ProcessedGameRow =
+        ProcessedGameRow(
+            name,
+            "9TEST0000000",
+            true,
+            false,
+            AppConfig.ULTIMATE_EXCLUSIVE,
+            "game/9TEST0000000",
+        )
 }

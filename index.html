@@ -556,15 +556,30 @@
       .art-9 { background: linear-gradient(145deg, #745be2, #2f246a); }
 
       .game-copy {
+        flex: 1 1 auto;
         min-width: 0;
       }
 
+      .game-title-row {
+        display: flex;
+        align-items: center;
+        min-width: 0;
+        gap: 8px;
+      }
+
       .game-name {
+        display: block;
         overflow: hidden;
         color: var(--text-strong);
         font-size: 15px;
         font-weight: 720;
+        text-decoration: none;
         text-overflow: ellipsis;
+      }
+
+      .game-name:hover {
+        color: var(--green);
+        text-decoration: underline;
       }
 
       .game-note {
@@ -608,6 +623,25 @@
       .badge-ubisoft {
         color: var(--violet);
         background: var(--violet-soft);
+      }
+
+      .new-game-badge {
+        display: inline-flex;
+        align-items: center;
+        flex: 0 0 auto;
+        border-radius: 999px;
+        padding: 4px 7px;
+        color: #7a3d00;
+        background: #fff0c2;
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: 0.02em;
+        white-space: nowrap;
+      }
+
+      [data-theme="dark"] .new-game-badge {
+        color: #ffd38a;
+        background: #4d3108;
       }
 
       .check,
@@ -1026,6 +1060,7 @@
             <option value="exclusive">Ultimate Exclusive</option>
             <option value="ultimate">Ultimate</option>
             <option value="premium">Premium</option>
+            <option value="essential">Essential</option>
           </select>
           <label class="search-box">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
@@ -1107,19 +1142,40 @@
         difference: 'data/ultimate-no-premium.csv',
         exclusive: 'data/ultimate-exclusive.csv',
         ultimate: 'data/ultimate.csv',
-        premium: 'data/premium.csv'
+        premium: 'data/premium.csv',
+        essential: 'data/essential.csv',
+        eaPlay: 'data/ea-play.csv',
+        ubisoftPlus: 'data/ubisoft-plus.csv'
       };
       const DATASET_LABELS = {
         difference: 'Ultimate not Premium',
         exclusive: 'Ultimate Exclusive',
         ultimate: 'Ultimate',
-        premium: 'Premium'
+        premium: 'Premium',
+        essential: 'Essential'
       };
-      const BASE_HEADERS = ['name', 'console', 'pc'];
-      const PROCESSED_HEADERS = [...BASE_HEADERS, 'category'];
+      const SOURCE_HEADERS = ['name', 'productId', 'console', 'pc', 'storePath', 'newSinceDate'];
+      const PROCESSED_HEADERS = [
+        'name',
+        'productId',
+        'console',
+        'pc',
+        'category',
+        'storePath',
+        'newSinceDate'
+      ];
       const ALLOWED_CATEGORIES = new Set(['EA Play', 'Ubisoft+ Classics', 'Ultimate Exclusive']);
       const state = {
-        datasets: { difference: [], exclusive: [], ultimate: [], premium: [] },
+        datasets: {
+          difference: [],
+          exclusive: [],
+          ultimate: [],
+          premium: [],
+          essential: [],
+          eaPlay: [],
+          ubisoftPlus: []
+        },
+        catalogInfo: null,
         dataset: 'difference',
         search: '',
         category: 'all',
@@ -1199,7 +1255,7 @@
 
         const headers = rows[0];
         const hasCategory = headers.length === PROCESSED_HEADERS.length;
-        const expectedHeaders = hasCategory ? PROCESSED_HEADERS : BASE_HEADERS;
+        const expectedHeaders = hasCategory ? PROCESSED_HEADERS : SOURCE_HEADERS;
         if (
           headers.length !== expectedHeaders.length ||
           headers.some(function (header, index) { return header !== expectedHeaders[index]; })
@@ -1212,16 +1268,48 @@
           if (row.length !== expectedHeaders.length || !row[0]) {
             throw new Error('Invalid CSV row ' + rowNumber + '.');
           }
-          if (hasCategory && !ALLOWED_CATEGORIES.has(row[3])) {
+          const categoryIndex = hasCategory ? 4 : -1;
+          const storePathIndex = hasCategory ? 5 : 4;
+          const newSinceDateIndex = hasCategory ? 6 : 5;
+          if (!/^[A-Z0-9]{12}$/.test(row[1])) {
+            throw new Error('Invalid Product ID on CSV row ' + rowNumber + '.');
+          }
+          if (hasCategory && !ALLOWED_CATEGORIES.has(row[categoryIndex])) {
             throw new Error('Invalid category on CSV row ' + rowNumber + '.');
+          }
+          if (
+            !row[storePathIndex] ||
+            row[storePathIndex].startsWith('/') ||
+            row[storePathIndex].includes('://') ||
+            row[storePathIndex].includes('?') ||
+            row[storePathIndex].includes('#') ||
+            row[storePathIndex].includes('..') ||
+            row[storePathIndex].split('/').at(-1) !== row[1]
+          ) {
+            throw new Error('Invalid storePath on CSV row ' + rowNumber + '.');
+          }
+          if (
+            row[newSinceDateIndex] &&
+            !isCanonicalIsoDate(row[newSinceDateIndex])
+          ) {
+            throw new Error('Invalid newSinceDate on CSV row ' + rowNumber + '.');
           }
           return {
             name: row[0],
-            console: parseBoolean(row[1], rowNumber, 'console'),
-            pc: parseBoolean(row[2], rowNumber, 'pc'),
-            category: hasCategory ? row[3] : null
+            productId: row[1],
+            console: parseBoolean(row[2], rowNumber, 'console'),
+            pc: parseBoolean(row[3], rowNumber, 'pc'),
+            category: hasCategory ? row[categoryIndex] : null,
+            storePath: row[storePathIndex],
+            newSinceDate: row[newSinceDateIndex]
           };
         });
+      }
+
+      function isCanonicalIsoDate(value) {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+        const date = new Date(value + 'T00:00:00Z');
+        return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
       }
 
       async function fetchDataset(path) {
@@ -1229,13 +1317,32 @@
         if (!response.ok) {
           throw new Error('Could not load ' + path + ' (' + response.status + ').');
         }
-        return {
-          catalog: parseCatalog(await response.text()),
-          lastModified: response.headers.get('Last-Modified')
-        };
+        return parseCatalog(await response.text());
       }
 
-      function showLastModified(value) {
+      async function fetchCatalogInfo() {
+        const response = await fetch('data/catalog-info.json', { cache: 'no-cache' });
+        if (!response.ok) {
+          throw new Error('Could not load data/catalog-info.json (' + response.status + ').');
+        }
+        const info = await response.json();
+        const baseUrl = new URL(info.xboxStoreBaseUrl);
+        const checkedAt = new Date(info.lastCheckedAt);
+        if (
+          baseUrl.protocol !== 'https:' ||
+          baseUrl.hostname !== 'www.xbox.com' ||
+          !baseUrl.pathname.endsWith('/games/store/') ||
+          !Number.isInteger(info.newGameDisplayDays) ||
+          info.newGameDisplayDays <= 0 ||
+          Number.isNaN(checkedAt.getTime()) ||
+          typeof info.changesFound !== 'boolean'
+        ) {
+          throw new Error('catalog-info.json is invalid.');
+        }
+        return info;
+      }
+
+      function showLastChecked(value) {
         if (!value) {
           generatedDate.hidden = true;
           generatedDate.textContent = '';
@@ -1249,8 +1356,9 @@
           return;
         }
 
-        generatedDate.textContent = 'Last file update ' + date.toLocaleDateString('en-US', {
-          dateStyle: 'medium'
+        generatedDate.textContent = 'Last catalog check ' + date.toLocaleString('en-US', {
+          dateStyle: 'medium',
+          timeStyle: 'short'
         });
         generatedDate.hidden = false;
       }
@@ -1258,19 +1366,18 @@
       async function loadCatalogs() {
         setStatus('loading');
         renderMessage('loading');
-        showLastModified(null);
+        showLastChecked(null);
         try {
           const entries = Object.entries(DATASETS);
-          const results = await Promise.all(entries.map(function (entry) {
-            return fetchDataset(entry[1]);
-          }));
+          const results = await Promise.all([
+            ...entries.map(function (entry) { return fetchDataset(entry[1]); }),
+            fetchCatalogInfo()
+          ]);
           entries.forEach(function (entry, index) {
-            state.datasets[entry[0]] = results[index].catalog;
+            state.datasets[entry[0]] = results[index];
           });
-          const exclusiveIndex = entries.findIndex(function (entry) {
-            return entry[0] === 'exclusive';
-          });
-          showLastModified(results[exclusiveIndex].lastModified);
+          state.catalogInfo = results.at(-1);
+          showLastChecked(state.catalogInfo.lastCheckedAt);
           state.loaded = true;
           setStatus('ready');
           render();
@@ -1381,6 +1488,22 @@
         return art;
       }
 
+      function isNewGame(game) {
+        if (!game.newSinceDate || !state.catalogInfo) return false;
+        const now = new Date();
+        const todayUtc = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+        const firstSeenUtc = Date.parse(game.newSinceDate + 'T00:00:00Z');
+        const ageInDays = Math.floor((todayUtc - firstSeenUtc) / 86400000);
+        return ageInDays >= 0 && ageInDays < state.catalogInfo.newGameDisplayDays;
+      }
+
+      function createNewGameBadge() {
+        const badge = document.createElement('span');
+        badge.className = 'new-game-badge';
+        badge.textContent = 'New game';
+        return badge;
+      }
+
       function createGameIdentity(game) {
         const wrapper = document.createElement('div');
         wrapper.className = 'game';
@@ -1388,10 +1511,17 @@
 
         const copy = document.createElement('div');
         copy.className = 'game-copy';
-        const name = document.createElement('div');
+        const titleRow = document.createElement('div');
+        titleRow.className = 'game-title-row';
+        const name = document.createElement('a');
         name.className = 'game-name';
         name.textContent = game.name;
         name.title = game.name;
+        name.href = new URL(game.storePath, state.catalogInfo.xboxStoreBaseUrl).toString();
+        name.target = '_blank';
+        name.rel = 'noopener noreferrer';
+        titleRow.append(name);
+        if (isNewGame(game)) titleRow.append(createNewGameBadge());
         const note = document.createElement('div');
         note.className = 'game-note';
         note.textContent = DATASET_LABELS[state.dataset];
@@ -1410,7 +1540,7 @@
           category.setAttribute('aria-label', game.category);
           meta.append(category);
         }
-        copy.append(name, meta);
+        copy.append(titleRow, meta);
         wrapper.append(copy);
         return wrapper;
       }

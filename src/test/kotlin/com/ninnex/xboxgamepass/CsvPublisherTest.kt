@@ -2,6 +2,7 @@ package com.ninnex.xboxgamepass
 
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
+import java.time.Instant
 import kotlin.io.path.readText
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -14,14 +15,14 @@ class CsvPublisherTest {
         val root = Files.createTempDirectory("publisher-test-")
         try {
             val output = root.resolve("data")
-            val files = expectedFiles("new")
+            val files = expectedFiles("New game")
 
             CsvPublisher.publish(output, files)
 
             assertEquals(AppConfig.expectedFileNames, Files.list(output).use { stream ->
                 stream.map { it.fileName.toString() }.toList().toSet()
             })
-            assertTrue(output.resolve("ultimate.csv").readText().contains("new"))
+            assertTrue(output.resolve("ultimate.csv").readText().contains("New game"))
         } finally {
             deleteRecursively(root)
         }
@@ -45,8 +46,35 @@ class CsvPublisherTest {
         }
     }
 
-    private fun expectedFiles(marker: String): List<GeneratedFile> =
-        AppConfig.expectedFileNames.sorted().map { GeneratedFile(it, "\uFEFF$marker\r\n") }
+    private fun expectedFiles(name: String): List<GeneratedFile> {
+        val game = GameRow(name, "9TEST0000000", true, false, "game/9TEST0000000")
+        val processed = ProcessedGameRow(
+            name,
+            game.productId,
+            true,
+            false,
+            AppConfig.ULTIMATE_EXCLUSIVE,
+            game.storePath,
+        )
+        val catalogs = Catalogs(
+            ultimate = listOf(game),
+            premium = listOf(game.copy(name = "Premium")),
+            essential = listOf(game.copy(name = "Essential")),
+            eaPlay = listOf(game.copy(name = "EA")),
+            ubisoftPlus = listOf(game.copy(name = "Ubisoft")),
+        )
+        val csvFiles = CsvWriter.createFiles(
+            catalogs,
+            ProcessedCatalogs(listOf(processed), listOf(processed)),
+        )
+        val info = CatalogInfo(
+            AppConfig.XBOX_STORE_BASE_URL,
+            AppConfig.NEW_GAME_DISPLAY_DAYS,
+            Instant.parse("2026-07-25T12:00:00Z").toString(),
+            changesFound = true,
+        )
+        return csvFiles + GeneratedFile("catalog-info.json", CatalogInfoWriter.write(info))
+    }
 
     private fun deleteRecursively(root: java.nio.file.Path) {
         if (!Files.exists(root)) return

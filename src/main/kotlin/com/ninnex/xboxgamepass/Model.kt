@@ -23,22 +23,35 @@ data class PlatformProductIds(
     val ids: List<String>,
 )
 
+data class ProductMetadata(
+    val productId: String,
+    val productTitle: String,
+    val storePath: String,
+)
+
 data class GameRow(
     val name: String,
+    val productId: String,
     val console: Boolean,
     val pc: Boolean,
+    val storePath: String,
+    val newSinceDate: String = "",
 )
 
 data class ProcessedGameRow(
     val name: String,
+    val productId: String,
     val console: Boolean,
     val pc: Boolean,
     val category: String,
+    val storePath: String,
+    val newSinceDate: String = "",
 )
 
 data class Catalogs(
     val ultimate: List<GameRow>,
     val premium: List<GameRow>,
+    val essential: List<GameRow>,
     val eaPlay: List<GameRow>,
     val ubisoftPlus: List<GameRow>,
 )
@@ -53,15 +66,24 @@ data class GeneratedFile(
     val content: String,
 )
 
+data class CatalogInfo(
+    val xboxStoreBaseUrl: String,
+    val newGameDisplayDays: Int,
+    val lastCheckedAt: String,
+    val changesFound: Boolean,
+)
+
 data class GenerationResult(
     val catalogs: Catalogs,
     val processed: ProcessedCatalogs,
+    val catalogInfo: CatalogInfo,
     val files: List<GeneratedFile>,
 ) {
     val summary: Map<String, Int>
         get() = linkedMapOf(
             "ultimate.csv" to catalogs.ultimate.size,
             "premium.csv" to catalogs.premium.size,
+            "essential.csv" to catalogs.essential.size,
             "ea-play.csv" to catalogs.eaPlay.size,
             "ubisoft-plus.csv" to catalogs.ubisoftPlus.size,
             "ultimate-no-premium.csv" to processed.ultimateNoPremium.size,
