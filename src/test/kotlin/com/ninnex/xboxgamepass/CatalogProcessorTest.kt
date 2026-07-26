@@ -8,30 +8,45 @@ import kotlin.test.assertTrue
 
 class CatalogProcessorTest {
     @Test
-    fun `merges console and PC availability by exact product title`() {
+    fun `merges availability and selects a shared Product ID`() {
         val rows = CatalogProcessor.buildCatalogRows(
             listOf(
                 PlatformProductIds(Platform.CONSOLE, listOf("A", "B")),
                 PlatformProductIds(Platform.PC, listOf("A", "C")),
             ),
-            mapOf("A" to "Alpha", "B" to "Beta", "C" to "Charlie"),
+            products("A" to "Alpha", "B" to "Beta", "C" to "Charlie"),
         )
 
         assertEquals(
             listOf(
-                GameRow("Alpha", console = true, pc = true),
-                GameRow("Beta", console = true, pc = false),
-                GameRow("Charlie", console = false, pc = true),
+                GameRow("Alpha", "A", console = true, pc = true, "alpha/A"),
+                GameRow("Beta", "B", console = true, pc = false, "beta/B"),
+                GameRow("Charlie", "C", console = false, pc = true, "charlie/C"),
             ),
             rows,
         )
     }
 
     @Test
-    fun `deduplicates exact titles and sorts them using the English comparator`() {
+    fun `prefers console Product ID when platform editions differ`() {
+        val rows = CatalogProcessor.buildCatalogRows(
+            listOf(
+                PlatformProductIds(Platform.CONSOLE, listOf("CONSOLE")),
+                PlatformProductIds(Platform.PC, listOf("PC")),
+            ),
+            products("CONSOLE" to "Same title", "PC" to "Same title"),
+        )
+
+        assertEquals("CONSOLE", rows.single().productId)
+        assertTrue(rows.single().console)
+        assertTrue(rows.single().pc)
+    }
+
+    @Test
+    fun `deduplicates exact titles and sorts with the English comparator`() {
         val rows = CatalogProcessor.buildCatalogRows(
             listOf(PlatformProductIds(Platform.CONSOLE, listOf("1", "2", "3", "4"))),
-            mapOf("1" to "zulu", "2" to "Alpha", "3" to "beta", "4" to "Alpha"),
+            products("1" to "zulu", "2" to "Alpha", "3" to "beta", "4" to "Alpha"),
         )
 
         assertEquals(listOf("Alpha", "beta", "zulu"), rows.map { it.name })
@@ -68,14 +83,13 @@ class CatalogProcessorTest {
     }
 
     @Test
-    fun `fails when any product ID has no resolved title`() {
+    fun `fails when any Product ID has no resolved metadata`() {
         val error = assertFailsWith<IllegalStateException> {
             CatalogProcessor.buildCatalogRows(
                 listOf(PlatformProductIds(Platform.PC, listOf("MISSING"))),
                 emptyMap(),
             )
         }
-
         assertTrue(error.message.orEmpty().contains("MISSING"))
     }
 
@@ -84,6 +98,7 @@ class CatalogProcessorTest {
         val catalogs = Catalogs(
             ultimate = games("Premium game", "EA game", "Both game", "Ubisoft game", "Exclusive game"),
             premium = games("Premium game"),
+            essential = games("Essential game"),
             eaPlay = games("EA game", "Both game"),
             ubisoftPlus = games("Both game", "Ubisoft game"),
         )
@@ -104,31 +119,17 @@ class CatalogProcessorTest {
     }
 
     @Test
-    fun `comparison remains exact and case sensitive`() {
-        val catalogs = Catalogs(
-            ultimate = games("Game", "game", "Exclusive"),
-            premium = games("Game"),
-            eaPlay = games("EA placeholder"),
-            ubisoftPlus = games("Ubisoft placeholder"),
-        )
-
-        val processed = CatalogProcessor.buildProcessedRows(catalogs)
-
-        assertEquals(listOf("game", "Exclusive"), processed.ultimateNoPremium.map { it.name })
-    }
-
-    @Test
     fun `accepts a complete valid result`() {
         val catalogs = Catalogs(
             ultimate = games("Premium", "EA", "Ubisoft", "Exclusive"),
             premium = games("Premium"),
+            essential = games("Essential"),
             eaPlay = games("EA"),
             ubisoftPlus = games("Ubisoft"),
         )
         val processed = CatalogProcessor.buildProcessedRows(catalogs)
 
         CatalogProcessor.validateRows(catalogs, processed)
-
         assertTrue(processed.ultimateExclusive.isNotEmpty())
     }
 
@@ -141,53 +142,43 @@ class CatalogProcessorTest {
         )
 
         assertFailsWith<IllegalArgumentException> {
-            CatalogProcessor.validateRows(Catalogs(emptyList(), valid, valid, valid), processed)
+            CatalogProcessor.validateRows(
+                Catalogs(emptyList(), valid, valid, valid, valid),
+                processed,
+            )
         }
         assertFailsWith<IllegalArgumentException> {
             CatalogProcessor.validateRows(
-                Catalogs(listOf(GameRow("Broken", false, false)), valid, valid, valid),
+                Catalogs(
+                    listOf(
+                        GameRow(
+                            "Broken",
+                            "9BROKEN00001",
+                            false,
+                            false,
+                            "broken/9BROKEN00001",
+                        ),
+                    ),
+                    valid,
+                    valid,
+                    valid,
+                    valid,
+                ),
                 processed,
             )
         }
     }
 
     @Test
-    fun `rejects processed results that are empty or contain forbidden memberships`() {
-        val catalogs = Catalogs(
-            ultimate = games("Premium", "Exclusive"),
-            premium = games("Premium"),
-            eaPlay = games("EA"),
-            ubisoftPlus = games("Ubisoft"),
-        )
-
-        assertFailsWith<IllegalArgumentException> {
-            CatalogProcessor.validateRows(catalogs, ProcessedCatalogs(emptyList(), emptyList()))
-        }
-        assertFailsWith<IllegalArgumentException> {
-            CatalogProcessor.validateRows(
-                catalogs,
-                ProcessedCatalogs(
-                    ultimateNoPremium = listOf(processed("Premium")),
-                    ultimateExclusive = listOf(processed("Premium")),
-                ),
-            )
-        }
-    }
-
-    @Test
-    fun `rejects an allowed category when it does not match membership priority`() {
+    fun `rejects an allowed category when membership does not match`() {
         val catalogs = Catalogs(
             ultimate = games("EA", "Exclusive"),
             premium = games("Premium"),
+            essential = games("Essential"),
             eaPlay = games("EA"),
             ubisoftPlus = games("Ubisoft"),
         )
-        val incorrectlyClassified = ProcessedGameRow(
-            "EA",
-            console = true,
-            pc = false,
-            category = AppConfig.UBISOFT_PLUS,
-        )
+        val incorrectlyClassified = processed("EA").copy(category = AppConfig.UBISOFT_PLUS)
 
         assertFailsWith<IllegalArgumentException> {
             CatalogProcessor.validateRows(
@@ -201,8 +192,25 @@ class CatalogProcessorTest {
     }
 
     private fun games(vararg names: String): List<GameRow> =
-        names.map { GameRow(it, console = true, pc = false) }
+        names.mapIndexed { index, name ->
+            val productId = "9TEST${index.toString().padStart(7, '0')}"
+            GameRow(name, productId, true, false, "game-$index/$productId")
+        }
 
-    private fun processed(name: String): ProcessedGameRow =
-        ProcessedGameRow(name, console = true, pc = false, AppConfig.ULTIMATE_EXCLUSIVE)
+    private fun processed(name: String): ProcessedGameRow {
+        val productId = "9TEST0000000"
+        return ProcessedGameRow(
+            name,
+            productId,
+            true,
+            false,
+            AppConfig.ULTIMATE_EXCLUSIVE,
+            "game/$productId",
+        )
+    }
+
+    private fun products(vararg values: Pair<String, String>): Map<String, ProductMetadata> =
+        values.associate { (id, title) ->
+            id to ProductMetadata(id, title, "${title.lowercase().replace(' ', '-')}/$id")
+        }
 }

@@ -10,12 +10,7 @@ import java.util.Comparator
 
 object CsvPublisher {
     fun publish(outputDirectory: Path, files: List<GeneratedFile>) {
-        require(files.map { it.name }.toSet() == AppConfig.expectedFileNames) {
-            "Exactly the six expected CSV files are required."
-        }
-        require(files.size == AppConfig.expectedFileNames.size) {
-            "Duplicate output file names are not allowed."
-        }
+        CatalogValidator.validateFiles(files)
 
         val output = outputDirectory.toAbsolutePath().normalize()
         val parent = output.parent ?: throw IllegalArgumentException("The output directory needs a parent.")

@@ -47,7 +47,9 @@ jobs:
         run: ./mvnw --batch-mode verify
 
       - name: Generate catalogs
-        run: ./mvnw --batch-mode exec:java
+        run: |
+          rm -rf build/generated-data
+          ./mvnw --batch-mode exec:java -Dexec.args="build/generated-data data"
 
       - name: Validate generated files and print counts
         shell: bash
@@ -55,18 +57,19 @@ jobs:
           set -euo pipefail
 
           source_files=(
-            data/ultimate.csv
-            data/premium.csv
-            data/ea-play.csv
-            data/ubisoft-plus.csv
+            build/generated-data/ultimate.csv
+            build/generated-data/premium.csv
+            build/generated-data/essential.csv
+            build/generated-data/ea-play.csv
+            build/generated-data/ubisoft-plus.csv
           )
           processed_files=(
-            data/ultimate-no-premium.csv
-            data/ultimate-exclusive.csv
+            build/generated-data/ultimate-no-premium.csv
+            build/generated-data/ultimate-exclusive.csv
           )
           expected_files=("${source_files[@]}" "${processed_files[@]}")
 
-          mapfile -t actual_files < <(find data -maxdepth 1 -type f -name '*.csv' -print | LC_ALL=C sort)
+          mapfile -t actual_files < <(find build/generated-data -maxdepth 1 -type f -name '*.csv' -print | LC_ALL=C sort)
           mapfile -t sorted_expected < <(printf '%s\n' "${expected_files[@]}" | LC_ALL=C sort)
 
           if [[ "$(printf '%s\n' "${actual_files[@]}")" != "$(printf '%s\n' "${sorted_expected[@]}")" ]]; then
@@ -79,8 +82,8 @@ jobs:
 
           for file in "${source_files[@]}"; do
             [[ -s "$file" ]] || { echo "$file is empty" >&2; exit 1; }
-            header=$(head -n 1 "$file" | sed $'s/^\xEF\xBB\xBF//; s/\r$//')
-            [[ "$header" == 'name,console,pc' ]] || {
+            header=$(head -n 1 "$file")
+            [[ "$header" == 'name,productId,console,pc,storePath,newSinceDate' ]] || {
               echo "$file has an invalid header: $header" >&2
               exit 1
             }
@@ -88,12 +91,34 @@ jobs:
 
           for file in "${processed_files[@]}"; do
             [[ -s "$file" ]] || { echo "$file is empty" >&2; exit 1; }
-            header=$(head -n 1 "$file" | sed $'s/^\xEF\xBB\xBF//; s/\r$//')
-            [[ "$header" == 'name,console,pc,category' ]] || {
+            header=$(head -n 1 "$file")
+            [[ "$header" == 'name,productId,console,pc,category,storePath,newSinceDate' ]] || {
               echo "$file has an invalid header: $header" >&2
               exit 1
             }
           done
+
+          for file in "${expected_files[@]}"; do
+            if head -c 3 "$file" | cmp -s - <(printf '\xEF\xBB\xBF'); then
+              echo "$file contains a forbidden UTF-8 BOM" >&2
+              exit 1
+            fi
+            if LC_ALL=C grep -q $'\r' "$file"; then
+              echo "$file contains a forbidden carriage return" >&2
+              exit 1
+            fi
+          done
+
+          info=build/generated-data/catalog-info.json
+          [[ -s "$info" ]] || { echo "$info is empty" >&2; exit 1; }
+          jq -e '
+            keys == ["changesFound", "lastCheckedAt", "newGameDisplayDays", "xboxStoreBaseUrl"] and
+            .xboxStoreBaseUrl == "https://www.xbox.com/en-US/games/store/" and
+            (.newGameDisplayDays | type == "number") and
+            .newGameDisplayDays > 0 and
+            (.lastCheckedAt | type == "string") and
+            (.changesFound | type == "boolean")
+          ' "$info" >/dev/null
 
           echo 'Generated catalog counts:'
           for file in "${expected_files[@]}"; do
@@ -101,6 +126,26 @@ jobs:
             printf '  %s: %d games\n' "$file" "$rows"
           done
 
+          echo 'Data change summary:'
+          echo "changesFound: $(jq -r '.changesFound' "$info")"
+
+      - name: Publish validated candidate set to the working tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          files=(
+            ultimate.csv
+            premium.csv
+            essential.csv
+            ea-play.csv
+            ubisoft-plus.csv
+            ultimate-no-premium.csv
+            ultimate-exclusive.csv
+            catalog-info.json
+          )
+          for file in "${files[@]}"; do
+            cp "build/generated-data/$file" "data/$file"
+          done
           echo 'Data change summary:'
           git diff --stat -- data/ || true
 
@@ -113,14 +158,16 @@ jobs:
           files=(
             data/ultimate.csv
             data/premium.csv
+            data/essential.csv
             data/ea-play.csv
             data/ubisoft-plus.csv
             data/ultimate-no-premium.csv
             data/ultimate-exclusive.csv
+            data/catalog-info.json
           )
 
           if git diff --quiet -- "${files[@]}"; then
-            echo 'No catalog changes detected; no commit will be created.'
+            echo 'No generated data changes detected; no commit will be created.'
             git fetch origin main
             git merge --ff-only origin/main
             echo 'changed=false' >> "$GITHUB_OUTPUT"
@@ -172,10 +219,12 @@ jobs:
           mkdir -p build/pages/data
           cp index.html build/pages/index.html
           cp data/*.csv build/pages/data/
+          cp data/catalog-info.json build/pages/data/
 
-          test "$(find build/pages -type f | wc -l)" -eq 7
+          test "$(find build/pages -type f | wc -l)" -eq 9
           test -f build/pages/index.html
-          test "$(find build/pages/data -maxdepth 1 -type f -name '*.csv' | wc -l)" -eq 6
+          test -f build/pages/data/catalog-info.json
+          test "$(find build/pages/data -maxdepth 1 -type f -name '*.csv' | wc -l)" -eq 7
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v5

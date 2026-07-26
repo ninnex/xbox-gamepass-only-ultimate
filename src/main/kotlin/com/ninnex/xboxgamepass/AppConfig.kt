@@ -10,8 +10,12 @@ object AppConfig {
     const val MS_CV = "DGU1mcuYo0WMMp+F.1"
     const val PRODUCT_BATCH_SIZE = 20
     const val PRODUCT_CONCURRENCY = 4
+    const val STORE_PAGE_CONCURRENCY = 8
     const val REQUEST_ATTEMPTS = 3
     val REQUEST_TIMEOUT: Duration = Duration.ofSeconds(60)
+
+    const val XBOX_STORE_BASE_URL = "https://www.xbox.com/en-US/games/store/"
+    const val NEW_GAME_DISPLAY_DAYS = 20
 
     const val EA_PLAY = "EA Play"
     const val UBISOFT_PLUS = "Ubisoft+ Classics"
@@ -56,6 +60,24 @@ object AppConfig {
             ),
         ),
         CatalogDefinition(
+            key = "essential",
+            fileName = "essential.csv",
+            sources = listOf(
+                source(
+                    id = "34031711-5a70-4196-bab7-45757dc2294e",
+                    platform = Platform.CONSOLE,
+                    platformContext = "ConsoleGen8;ConsoleGen9",
+                    subscriptionContext = "cfq7ttc0k5dj",
+                ),
+                source(
+                    id = "34031711-5a70-4196-bab7-45757dc2294e",
+                    platform = Platform.PC,
+                    platformContext = "pc",
+                    subscriptionContext = "cfq7ttc0k5dj",
+                ),
+            ),
+        ),
+        CatalogDefinition(
             key = "eaPlay",
             fileName = "ea-play.csv",
             sources = listOf(
@@ -93,8 +115,17 @@ object AppConfig {
         ),
     )
 
-    val expectedFileNames = catalogs.map { it.fileName }.toSet() +
+    val expectedCsvFileNames = catalogs.map { it.fileName }.toSet() +
         setOf("ultimate-no-premium.csv", "ultimate-exclusive.csv")
+    val expectedFileNames = expectedCsvFileNames + "catalog-info.json"
+
+    val visibleFileNames = setOf(
+        "ultimate.csv",
+        "premium.csv",
+        "essential.csv",
+        "ultimate-no-premium.csv",
+        "ultimate-exclusive.csv",
+    )
 
     private fun source(
         id: String,

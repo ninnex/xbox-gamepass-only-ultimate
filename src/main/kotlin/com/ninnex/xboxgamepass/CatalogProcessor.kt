@@ -19,23 +19,37 @@ object CatalogProcessor {
 
     fun buildCatalogRows(
         platformLists: List<PlatformProductIds>,
-        productNames: Map<String, String>,
+        products: Map<String, ProductMetadata>,
     ): List<GameRow> {
-        val gamesByExactName = linkedMapOf<String, GameRow>()
+        val gamesByExactName = linkedMapOf<String, ProductMembership>()
 
         platformLists.forEach { platformList ->
             platformList.ids.forEach { id ->
-                val name = productNames[id]
-                    ?: throw IllegalStateException("No product name was found for $id.")
-                val current = gamesByExactName[name] ?: GameRow(name, console = false, pc = false)
-                gamesByExactName[name] = when (platformList.platform) {
-                    Platform.CONSOLE -> current.copy(console = true)
-                    Platform.PC -> current.copy(pc = true)
+                val product = products[id]
+                    ?: throw IllegalStateException("No product metadata was found for $id.")
+                val membership = gamesByExactName.getOrPut(product.productTitle) {
+                    ProductMembership()
+                }
+                when (platformList.platform) {
+                    Platform.CONSOLE -> membership.consoleIds.add(id)
+                    Platform.PC -> membership.pcIds.add(id)
                 }
             }
         }
 
-        return gamesByExactName.values.sortedWith(compareBy(nameComparator) { it.name })
+        return gamesByExactName.map { (name, membership) ->
+            val selectedId = membership.consoleIds.firstOrNull { it in membership.pcIds }
+                ?: membership.consoleIds.firstOrNull()
+                ?: membership.pcIds.first()
+            val selectedProduct = products.getValue(selectedId)
+            GameRow(
+                name = name,
+                productId = selectedProduct.productId,
+                console = membership.consoleIds.isNotEmpty(),
+                pc = membership.pcIds.isNotEmpty(),
+                storePath = selectedProduct.storePath,
+            )
+        }.sortedWith(compareBy(nameComparator) { it.name })
     }
 
     fun buildProcessedRows(catalogs: Catalogs): ProcessedCatalogs {
@@ -52,7 +66,15 @@ object CatalogProcessor {
                     game.name in ubisoftPlusNames -> AppConfig.UBISOFT_PLUS
                     else -> AppConfig.ULTIMATE_EXCLUSIVE
                 }
-                ProcessedGameRow(game.name, game.console, game.pc, category)
+                ProcessedGameRow(
+                    name = game.name,
+                    productId = game.productId,
+                    console = game.console,
+                    pc = game.pc,
+                    category = category,
+                    storePath = game.storePath,
+                    newSinceDate = game.newSinceDate,
+                )
             }
             .toList()
 
@@ -68,6 +90,7 @@ object CatalogProcessor {
         linkedMapOf(
             "ultimate" to catalogs.ultimate,
             "premium" to catalogs.premium,
+            "essential" to catalogs.essential,
             "eaPlay" to catalogs.eaPlay,
             "ubisoftPlus" to catalogs.ubisoftPlus,
         ).forEach { (catalogName, rows) ->
@@ -75,7 +98,10 @@ object CatalogProcessor {
             require(rows.map { it.name }.toSet().size == rows.size) {
                 "$catalogName contains duplicate exact names."
             }
-            require(rows.none { it.name.isBlank() || (!it.console && !it.pc) }) {
+            require(rows.map { it.productId }.toSet().size == rows.size) {
+                "$catalogName contains duplicate Product IDs."
+            }
+            require(rows.all(::isValidGameRow)) {
                 "$catalogName contains an invalid row."
             }
         }
@@ -104,14 +130,18 @@ object CatalogProcessor {
                 game.category == expectedCategory &&
                 game.console == source.console &&
                 game.pc == source.pc &&
+                game.productId == source.productId &&
+                game.storePath == source.storePath &&
                 game.name.isNotBlank() &&
-                (game.console || game.pc)
+                (game.console || game.pc) &&
+                isValidNewSinceDate(game.newSinceDate)
         }) { "ultimate-no-premium failed validation." }
 
         require(processed.ultimateExclusive.none {
-            it.name in premiumNames || it.name in eaPlayNames || it.name in ubisoftPlusNames ||
+                it.name in premiumNames || it.name in eaPlayNames || it.name in ubisoftPlusNames ||
                 it.category != AppConfig.ULTIMATE_EXCLUSIVE ||
-                it.name.isBlank() || (!it.console && !it.pc)
+                it.name.isBlank() || (!it.console && !it.pc) ||
+                !isValidNewSinceDate(it.newSinceDate)
         }) { "ultimate-exclusive failed validation." }
         require(
             processed.ultimateExclusive == processed.ultimateNoPremium.filter {
@@ -119,4 +149,22 @@ object CatalogProcessor {
             },
         ) { "ultimate-exclusive does not match the classified Ultimate Exclusive rows." }
     }
+
+    fun isValidNewSinceDate(value: String): Boolean =
+        value.isEmpty() || runCatching {
+            val parsed = java.time.LocalDate.parse(value)
+            parsed.toString() == value
+        }.getOrDefault(false)
+
+    private fun isValidGameRow(row: GameRow): Boolean =
+        row.name.isNotBlank() &&
+            (row.console || row.pc) &&
+            row.productId.matches(Regex("[A-Z0-9]{12}")) &&
+            runCatching { StorePath.validate(row.storePath, row.productId) }.isSuccess &&
+            isValidNewSinceDate(row.newSinceDate)
+
+    private data class ProductMembership(
+        val consoleIds: LinkedHashSet<String> = linkedSetOf(),
+        val pcIds: LinkedHashSet<String> = linkedSetOf(),
+    )
 }

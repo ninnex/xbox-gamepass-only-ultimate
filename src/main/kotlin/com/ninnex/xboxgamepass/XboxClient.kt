@@ -53,34 +53,40 @@ class XboxClient(
         return PlatformProductIds(source.platform, ids.toList())
     }
 
-    fun loadProductNames(productIds: List<String>): Map<String, String> {
+    fun loadProducts(productIds: List<String>): Map<String, ProductMetadata> {
         val uniqueIds = productIds.mapTo(linkedSetOf()) { it.uppercase(Locale.ROOT) }.toList()
         val batches = uniqueIds.chunked(AppConfig.PRODUCT_BATCH_SIZE)
         println(
             "[Phase B] Resolving ${uniqueIds.size} unique products in ${batches.size} batches.",
         )
 
-        val productNames = linkedMapOf<String, String>()
+        val resolvedProducts = linkedMapOf<String, ResolvedProduct>()
         loadBatches(batches, retry = false).flatten().forEach { product ->
-            addResolvedProduct(productNames, product)
+            addResolvedProduct(resolvedProducts, product)
         }
 
-        var missingIds = uniqueIds.filterNot(productNames::containsKey)
+        var missingIds = uniqueIds.filterNot(resolvedProducts::containsKey)
         if (missingIds.isNotEmpty()) {
             System.err.println(
                 "[Phase B] Retrying ${missingIds.size} products that were not resolved.",
             )
             loadBatches(missingIds.chunked(AppConfig.PRODUCT_BATCH_SIZE), retry = true)
                 .flatten()
-                .forEach { product -> addResolvedProduct(productNames, product) }
-            missingIds = uniqueIds.filterNot(productNames::containsKey)
+                .forEach { product -> addResolvedProduct(resolvedProducts, product) }
+            missingIds = uniqueIds.filterNot(resolvedProducts::containsKey)
         }
 
         check(missingIds.isEmpty()) {
             "${missingIds.size} products could not be resolved. No files were written. " +
                 "Missing IDs: ${missingIds.take(20).joinToString(", ")}"
         }
-        return productNames
+
+        val storePathCount = resolvedProducts.values.count { it.storePath != null }
+        println(
+            "[Phase B] Structured metadata supplied $storePathCount/${resolvedProducts.size} store paths; " +
+                "resolving the remainder from official Xbox pages.",
+        )
+        return resolveMissingStorePaths(resolvedProducts)
     }
 
     private fun loadBatches(batches: List<List<String>>, retry: Boolean): List<List<JsonNode>> {
@@ -121,7 +127,10 @@ class XboxClient(
         return products.toList()
     }
 
-    private fun addResolvedProduct(target: MutableMap<String, String>, product: JsonNode) {
+    private fun addResolvedProduct(
+        target: MutableMap<String, ResolvedProduct>,
+        product: JsonNode,
+    ) {
         val id = product.get("ProductId")
             ?.takeIf(JsonNode::isTextual)
             ?.asText()
@@ -138,16 +147,96 @@ class XboxClient(
         } else {
             ""
         }
-        if (id.isNotEmpty() && name.isNotEmpty()) target[id] = name
+        if (id.isNotEmpty() && name.isNotEmpty()) {
+            target[id] = ResolvedProduct(
+                productId = id,
+                productTitle = name,
+                storePath = findStructuredStorePath(product, id),
+            )
+        }
+    }
+
+    private fun findStructuredStorePath(product: JsonNode, productId: String): String? {
+        val pending = ArrayDeque<JsonNode>()
+        pending.add(product)
+        while (pending.isNotEmpty()) {
+            val node = pending.removeFirst()
+            when {
+                node.isTextual -> {
+                    val candidate = node.asText().trim()
+                    if (candidate.startsWith("https://", ignoreCase = true)) {
+                        runCatching { StorePath.fromOfficialUrl(candidate, productId) }
+                            .getOrNull()
+                            ?.let { return it }
+                    }
+                }
+                node.isContainerNode -> node.forEach(pending::addLast)
+            }
+        }
+        return null
+    }
+
+    private fun resolveMissingStorePaths(
+        products: Map<String, ResolvedProduct>,
+    ): Map<String, ProductMetadata> {
+        val executor = Executors.newFixedThreadPool(
+            minOf(AppConfig.STORE_PAGE_CONCURRENCY, products.size),
+        )
+        return try {
+            val futures = products.values.map { product ->
+                executor.submit(Callable {
+                    val storePath = product.storePath ?: loadCanonicalStorePath(product.productId)
+                    ProductMetadata(product.productId, product.productTitle, storePath)
+                })
+            }
+            futures.map { future ->
+                try {
+                    future.get()
+                } catch (error: ExecutionException) {
+                    throw (error.cause as? Exception ?: error)
+                }
+            }.associateByTo(linkedMapOf()) { it.productId }
+        } finally {
+            executor.shutdownNow()
+        }
+    }
+
+    private fun loadCanonicalStorePath(productId: String): String {
+        val lookupUrl = "${AppConfig.XBOX_STORE_BASE_URL}-/$productId"
+        val html = fetchText(URI.create(lookupUrl), "Xbox Store page $productId", "text/html")
+        val canonicalUrl = linkTagPattern.findAll(html)
+            .map { it.value }
+            .firstNotNullOfOrNull { tag ->
+                if (!canonicalRelPattern.containsMatchIn(tag)) {
+                    null
+                } else {
+                    hrefPattern.find(tag)?.groupValues?.get(2)?.decodeHtmlAttribute()
+                }
+            }
+            ?: throw IllegalStateException(
+                "Xbox Store page $productId does not expose a canonical URL.",
+            )
+        return runCatching { StorePath.fromOfficialUrl(canonicalUrl, productId) }
+            .getOrElse {
+                System.err.println(
+                    "[Phase B] $productId canonical URL is not a Store URL; " +
+                        "using the official Product ID route.",
+                )
+                StorePath.fromOfficialUrl(lookupUrl, productId)
+            }
     }
 
     private fun fetchJson(uri: URI, label: String): JsonNode {
+        return objectMapper.readTree(fetchText(uri, label, "application/json"))
+    }
+
+    private fun fetchText(uri: URI, label: String, accept: String): String {
         var lastError: Exception? = null
         for (attempt in 1..AppConfig.REQUEST_ATTEMPTS) {
             try {
                 val request = HttpRequest.newBuilder(uri)
                     .timeout(AppConfig.REQUEST_TIMEOUT)
-                    .header("Accept", "application/json")
+                    .header("Accept", accept)
                     .header("Cache-Control", "no-store")
                     .header("User-Agent", "xbox-gamepass-csv-generator/1.0")
                     .GET()
@@ -156,7 +245,7 @@ class XboxClient(
                 if (response.statusCode() !in 200..299) {
                     throw IOException("$label returned HTTP ${response.statusCode()}.")
                 }
-                return objectMapper.readTree(response.body())
+                return response.body()
             } catch (error: InterruptedException) {
                 Thread.currentThread().interrupt()
                 throw error
@@ -182,4 +271,27 @@ class XboxClient(
         URLEncoder.encode(value, StandardCharsets.UTF_8)
 
     private fun Platform.logName(): String = name.lowercase(Locale.ROOT)
+
+    private data class ResolvedProduct(
+        val productId: String,
+        val productTitle: String,
+        val storePath: String?,
+    )
+
+    private fun String.decodeHtmlAttribute(): String =
+        replace("&amp;", "&")
+            .replace("&#x2F;", "/", ignoreCase = true)
+            .replace("&#47;", "/")
+
+    private companion object {
+        val linkTagPattern = Regex("""<link\b[^>]*>""", setOf(RegexOption.IGNORE_CASE))
+        val canonicalRelPattern = Regex(
+            """\brel\s*=\s*(["'])canonical\1""",
+            setOf(RegexOption.IGNORE_CASE),
+        )
+        val hrefPattern = Regex(
+            """\bhref\s*=\s*(["'])(.*?)\1""",
+            setOf(RegexOption.IGNORE_CASE),
+        )
+    }
 }
