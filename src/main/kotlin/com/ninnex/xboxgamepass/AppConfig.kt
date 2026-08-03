@@ -6,6 +6,9 @@ object AppConfig {
     const val MARKET = "US"
     const val LANGUAGE = "en-us"
     const val SIGL_ENDPOINT = "https://catalog.gamepass.com/sigls/v3"
+    const val CLOUD_LIST_ID = "29a81209-df6f-41fd-a528-2ae6b91f719c"
+    const val CLOUD_PLATFORM_CONTEXT = "ConsoleGen8;ConsoleGen9;pc"
+    const val CLOUD_SUBSCRIPTION_CONTEXT = "cfq7ttc0khs0"
     const val PRODUCTS_ENDPOINT = "https://displaycatalog.mp.microsoft.com/v7.0/products"
     const val MS_CV = "DGU1mcuYo0WMMp+F.1"
     const val REQUEST_ATTEMPTS = 3

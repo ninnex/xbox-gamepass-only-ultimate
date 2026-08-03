@@ -15,13 +15,14 @@ class CatalogProcessorTest {
                 PlatformProductIds(Platform.PC, listOf("A", "C")),
             ),
             products("A" to "Alpha", "B" to "Beta", "C" to "Charlie"),
+            cloudProductIds = setOf("A"),
         )
 
         assertEquals(
             listOf(
-                GameRow("Alpha", "A", console = true, pc = true, "alpha/A"),
-                GameRow("Beta", "B", console = true, pc = false, "beta/B"),
-                GameRow("Charlie", "C", console = false, pc = true, "charlie/C"),
+                GameRow("Alpha", "A", console = true, pc = true, cloud = true, "alpha/A"),
+                GameRow("Beta", "B", console = true, pc = false, cloud = false, "beta/B"),
+                GameRow("Charlie", "C", console = false, pc = true, cloud = false, "charlie/C"),
             ),
             rows,
         )
@@ -35,11 +36,24 @@ class CatalogProcessorTest {
                 PlatformProductIds(Platform.PC, listOf("PC")),
             ),
             products("CONSOLE" to "Same title", "PC" to "Same title"),
+            setOf("PC"),
         )
 
         assertEquals("CONSOLE", rows.single().productId)
         assertTrue(rows.single().console)
         assertTrue(rows.single().pc)
+        assertFalse(rows.single().cloud)
+    }
+
+    @Test
+    fun `matches Cloud only by Product ID`() {
+        val rows = CatalogProcessor.buildCatalogRows(
+            listOf(PlatformProductIds(Platform.CONSOLE, listOf("9CLOUD000001"))),
+            products("9CLOUD000001" to "Same name"),
+            cloudProductIds = setOf("9CLOUD000001"),
+        )
+
+        assertTrue(rows.single().cloud)
     }
 
     @Test
@@ -47,6 +61,7 @@ class CatalogProcessorTest {
         val rows = CatalogProcessor.buildCatalogRows(
             listOf(PlatformProductIds(Platform.CONSOLE, listOf("1", "2", "3", "4"))),
             products("1" to "zulu", "2" to "Alpha", "3" to "beta", "4" to "Alpha"),
+            emptySet(),
         )
 
         assertEquals(listOf("Alpha", "beta", "zulu"), rows.map { it.name })
@@ -88,6 +103,7 @@ class CatalogProcessorTest {
             CatalogProcessor.buildCatalogRows(
                 listOf(PlatformProductIds(Platform.PC, listOf("MISSING"))),
                 emptyMap(),
+                emptySet(),
             )
         }
         assertTrue(error.message.orEmpty().contains("MISSING"))
@@ -187,6 +203,7 @@ class CatalogProcessorTest {
                             "9BROKEN00001",
                             false,
                             false,
+                            false,
                             "broken/9BROKEN00001",
                         ),
                     ),
@@ -248,7 +265,7 @@ class CatalogProcessorTest {
     private fun games(vararg names: String): List<GameRow> =
         names.mapIndexed { index, name ->
             val productId = "9TEST${index.toString().padStart(7, '0')}"
-            GameRow(name, productId, true, false, "game-$index/$productId")
+            GameRow(name, productId, true, false, false, "game-$index/$productId")
         }
 
     private fun processed(
@@ -260,6 +277,7 @@ class CatalogProcessorTest {
             name,
             productId,
             true,
+            false,
             false,
             category,
             "game/$productId",

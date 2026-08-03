@@ -1,12 +1,15 @@
 package com.ninnex.xboxgamepass
 
 object CsvWriter {
-    val sourceHeaders = listOf("name", "productId", "console", "pc", "storePath", "newSinceDate")
+    val sourceHeaders = listOf(
+        "name", "productId", "console", "pc", "cloud", "storePath", "newSinceDate",
+    )
     val processedHeaders = listOf(
         "name",
         "productId",
         "console",
         "pc",
+        "cloud",
         "category",
         "storePath",
         "newSinceDate",
@@ -33,6 +36,7 @@ object CsvWriter {
                 it.productId,
                 it.console,
                 it.pc,
+                it.cloud,
                 it.storePath,
                 it.newSinceDate,
             )
@@ -47,6 +51,7 @@ object CsvWriter {
                 it.productId,
                 it.console,
                 it.pc,
+                it.cloud,
                 it.category,
                 it.storePath,
                 it.newSinceDate,

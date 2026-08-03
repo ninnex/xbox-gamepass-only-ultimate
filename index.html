@@ -897,6 +897,16 @@
         text-align: right;
       }
 
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        clip-path: inset(50%);
+        white-space: nowrap;
+      }
+
       @keyframes spin {
         to { transform: rotate(360deg); }
       }
@@ -1027,6 +1037,16 @@
       }
 
       @media (max-width: 600px) {
+        .cloud-card-capability {
+          display: none;
+        }
+
+        .summary-label {
+          display: flex;
+          padding-right: 0;
+          border-right: 0;
+        }
+
         .data-panel[data-view="list"] > .catalog-updated {
           display: none;
         }
@@ -1239,6 +1259,7 @@
             <option value="all">All platforms</option>
             <option value="pc">PC</option>
             <option value="console">Console</option>
+            <option value="cloud">Cloud</option>
           </select>
         </div>
 
@@ -1279,7 +1300,7 @@
         </div>
         <footer class="panel-footer">
           <div class="legend" aria-label="Classification legend"></div>
-          <span>United States catalog · PC and Console</span>
+          <span>United States catalog · PC, Console and Cloud</span>
         </footer>
       </section>
     </main>
@@ -1319,12 +1340,15 @@
         'Ubisoft+ Classics': 'Included in Game Pass Ultimate through Ubisoft+ Classics.',
         'Ultimate Exclusive': 'Exclusive to Game Pass Ultimate; not part of Premium, Essential, EA Play, or Ubisoft+ Classics.'
       };
-      const SOURCE_HEADERS = ['name', 'productId', 'console', 'pc', 'storePath', 'newSinceDate'];
+      const SOURCE_HEADERS = [
+        'name', 'productId', 'console', 'pc', 'cloud', 'storePath', 'newSinceDate'
+      ];
       const PROCESSED_HEADERS = [
         'name',
         'productId',
         'console',
         'pc',
+        'cloud',
         'category',
         'storePath',
         'newSinceDate'
@@ -1469,9 +1493,9 @@
           if (row.length !== expectedHeaders.length || !row[0]) {
             throw new Error('Invalid CSV row ' + rowNumber + '.');
           }
-          const categoryIndex = hasCategory ? 4 : -1;
-          const storePathIndex = hasCategory ? 5 : 4;
-          const newSinceDateIndex = hasCategory ? 6 : 5;
+          const categoryIndex = hasCategory ? 5 : -1;
+          const storePathIndex = hasCategory ? 6 : 5;
+          const newSinceDateIndex = hasCategory ? 7 : 6;
           if (!/^[A-Z0-9]{12}$/.test(row[1])) {
             throw new Error('Invalid Product ID on CSV row ' + rowNumber + '.');
           }
@@ -1500,6 +1524,7 @@
             productId: row[1],
             console: parseBoolean(row[2], rowNumber, 'console'),
             pc: parseBoolean(row[3], rowNumber, 'pc'),
+            cloud: parseBoolean(row[4], rowNumber, 'cloud'),
             category: hasCategory ? row[categoryIndex] : null,
             storePath: row[storePathIndex],
             newSinceDate: row[newSinceDateIndex]
@@ -1810,8 +1835,15 @@
       function createAvailability(available, platform) {
         const element = document.createElement('span');
         element.className = available ? 'check' : 'dash';
-        element.textContent = available ? '✓' : '—';
-        element.setAttribute('aria-label', available ? 'Available on ' + platform : 'Not available on ' + platform);
+        const symbol = document.createElement('span');
+        symbol.textContent = available ? '✓' : '—';
+        symbol.setAttribute('aria-hidden', 'true');
+        const accessibleText = document.createElement('span');
+        accessibleText.className = 'sr-only';
+        accessibleText.textContent = available
+          ? 'Available on ' + platform
+          : 'Not available on ' + platform;
+        element.append(symbol, accessibleText);
         return element;
       }
 
@@ -1831,7 +1863,8 @@
         }
         headers.push(
           { label: 'PC', className: 'col-platform col-pc' },
-          { label: 'Console', className: 'col-platform col-console' }
+          { label: 'Console', className: 'col-platform col-console' },
+          { label: 'Cloud', className: 'col-platform col-cloud' }
         );
         headers.forEach(function (header) {
           const th = document.createElement('th');
@@ -1873,9 +1906,12 @@
           const consoleCell = document.createElement('td');
           consoleCell.className = 'center col-platform col-console';
           consoleCell.append(createAvailability(game.console, 'Console'));
+          const cloud = document.createElement('td');
+          cloud.className = 'center col-platform col-cloud';
+          cloud.append(createAvailability(game.cloud, 'Xbox Cloud Gaming'));
           row.append(rank, identity);
           if (showClassification) row.append(classification);
-          row.append(pc, consoleCell);
+          row.append(pc, consoleCell, cloud);
           tbody.append(row);
         });
 
@@ -1900,6 +1936,12 @@
           if (game.pc) labels.push('PC');
           if (game.console) labels.push('Console');
           platforms.textContent = labels.join(' · ');
+          if (game.cloud) {
+            const cloud = document.createElement('span');
+            cloud.className = 'cloud-card-capability';
+            cloud.textContent = (labels.length > 0 ? ' · ' : '') + 'Cloud';
+            platforms.append(cloud);
+          }
           details.append(platforms);
           card.append(details);
           grid.append(card);

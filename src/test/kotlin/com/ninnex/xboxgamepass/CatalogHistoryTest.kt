@@ -146,6 +146,36 @@ class CatalogHistoryTest {
     }
 
     @Test
+    fun `changing Cloud availability preserves the existing date`() {
+        val root = Files.createTempDirectory("history-cloud-change-")
+        try {
+            val previousCatalogs = catalogs("2026-07-01")
+            val previousProcessed = processed(previousCatalogs, "2026-07-03")
+            CsvWriter.createFiles(previousCatalogs, previousProcessed).forEach { file ->
+                Files.writeString(root.resolve(file.name), file.content)
+            }
+            val candidateCatalogs = previousCatalogs.copy(
+                ultimate = previousCatalogs.ultimate.map {
+                    it.copy(cloud = !it.cloud, newSinceDate = "")
+                },
+            )
+            val candidateProcessed = CatalogProcessor.buildProcessedRows(candidateCatalogs)
+
+            val result = CatalogHistory.applyNewSinceDates(
+                root,
+                candidateCatalogs,
+                candidateProcessed,
+                LocalDate.parse("2026-07-25"),
+            )
+
+            assertEquals("2026-07-01", result.catalogs.ultimate.single().newSinceDate)
+            assertEquals("2026-07-01", result.processed.ultimate.single().newSinceDate)
+        } finally {
+            deleteRecursively(root)
+        }
+    }
+
+    @Test
     fun `migrates classified catalogs from the previous source schema without losing dates`() {
         val root = Files.createTempDirectory("history-schema-migration-")
         try {
@@ -202,7 +232,7 @@ class CatalogHistoryTest {
         )
 
     private fun game(name: String, id: String, date: String = "") =
-        GameRow(name, id, true, false, "game/$id", date)
+        GameRow(name, id, true, false, false, "game/$id", date)
 
     private fun processedRow(
         game: GameRow,
@@ -212,6 +242,7 @@ class CatalogHistoryTest {
         game.productId,
         game.console,
         game.pc,
+        game.cloud,
         category,
         game.storePath,
         game.newSinceDate,

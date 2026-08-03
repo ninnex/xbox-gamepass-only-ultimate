@@ -20,6 +20,7 @@ object CatalogProcessor {
     fun buildCatalogRows(
         platformLists: List<PlatformProductIds>,
         products: Map<String, ProductMetadata>,
+        cloudProductIds: Set<String>,
     ): List<GameRow> {
         val gamesByExactName = linkedMapOf<String, ProductMembership>()
 
@@ -47,6 +48,7 @@ object CatalogProcessor {
                 productId = selectedProduct.productId,
                 console = membership.consoleIds.isNotEmpty(),
                 pc = membership.pcIds.isNotEmpty(),
+                cloud = selectedProduct.productId in cloudProductIds,
                 storePath = selectedProduct.storePath,
             )
         }.sortedWith(compareBy(nameComparator) { it.name })
@@ -63,6 +65,7 @@ object CatalogProcessor {
             productId = game.productId,
             console = game.console,
             pc = game.pc,
+            cloud = game.cloud,
             category = category,
             storePath = game.storePath,
             newSinceDate = game.newSinceDate,
@@ -152,6 +155,7 @@ object CatalogProcessor {
                     row.productId == source.productId &&
                     row.console == source.console &&
                     row.pc == source.pc &&
+                    row.cloud == source.cloud &&
                     row.category == expectedCategory(row.name) &&
                     row.storePath == source.storePath &&
                     row.newSinceDate == source.newSinceDate
@@ -190,6 +194,7 @@ object CatalogProcessor {
                 game.category == expectedCategory &&
                 game.console == source.console &&
                 game.pc == source.pc &&
+                game.cloud == source.cloud &&
                 game.productId == source.productId &&
                 game.storePath == source.storePath &&
                 game.name.isNotBlank() &&

@@ -47,7 +47,7 @@ class CsvPublisherTest {
     }
 
     private fun expectedFiles(name: String): List<GeneratedFile> {
-        val game = GameRow(name, "9TEST0000000", true, false, "game/9TEST0000000")
+        val game = GameRow(name, "9TEST0000000", true, false, true, "game/9TEST0000000")
         val catalogs = Catalogs(
             ultimate = listOf(game),
             premium = listOf(game.copy(name = "Premium")),

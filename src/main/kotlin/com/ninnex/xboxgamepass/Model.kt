@@ -41,6 +41,7 @@ data class GameRow(
     val productId: String,
     val console: Boolean,
     val pc: Boolean,
+    val cloud: Boolean,
     val storePath: String,
     val newSinceDate: String = "",
 )
@@ -50,6 +51,7 @@ data class ProcessedGameRow(
     val productId: String,
     val console: Boolean,
     val pc: Boolean,
+    val cloud: Boolean,
     val category: String,
     val storePath: String,
     val newSinceDate: String = "",

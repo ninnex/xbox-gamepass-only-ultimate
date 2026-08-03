@@ -1,6 +1,12 @@
 package com.ninnex.xboxgamepass
 
 object CatalogValidator {
+    private val previousSourceHeaders =
+        listOf("name", "productId", "console", "pc", "storePath", "newSinceDate")
+    private val previousProcessedHeaders = listOf(
+        "name", "productId", "console", "pc", "category", "storePath", "newSinceDate",
+    )
+
     fun validateFiles(files: List<GeneratedFile>) {
         require(files.size == AppConfig.expectedFileNames.size) {
             "Duplicate output file names are not allowed."
@@ -26,13 +32,21 @@ object CatalogValidator {
         val rows = CsvReader.parse(content)
         require(rows.size >= 2) { "$fileName is empty." }
         val classified = fileName in AppConfig.CLASSIFIED_CSV_FILE_NAMES
-        val legacyClassified =
-            classified &&
-                allowLegacyClassifiedFormat &&
-                rows.first() == CsvWriter.sourceHeaders
-        val processed = classified && !legacyClassified
-        val headers = if (processed) CsvWriter.processedHeaders else CsvWriter.sourceHeaders
-        require(rows.first() == headers) { "$fileName has an invalid header." }
+        val actualHeaders = rows.first()
+        val format = when {
+            classified && actualHeaders == CsvWriter.processedHeaders -> CsvFormat.PROCESSED
+            !classified && actualHeaders == CsvWriter.sourceHeaders -> CsvFormat.SOURCE
+            allowLegacyClassifiedFormat && classified && actualHeaders == CsvWriter.sourceHeaders ->
+                CsvFormat.SOURCE
+            allowLegacyClassifiedFormat && classified && actualHeaders == previousProcessedHeaders ->
+                CsvFormat.PREVIOUS_PROCESSED
+            allowLegacyClassifiedFormat && actualHeaders == previousSourceHeaders ->
+                CsvFormat.PREVIOUS_SOURCE
+            else -> throw IllegalArgumentException("$fileName has an invalid header.")
+        }
+        val processed = format == CsvFormat.PROCESSED || format == CsvFormat.PREVIOUS_PROCESSED
+        val hasCloud = format == CsvFormat.SOURCE || format == CsvFormat.PROCESSED
+        val headers = actualHeaders
 
         val names = linkedSetOf<String>()
         val productIds = linkedSetOf<String>()
@@ -53,6 +67,11 @@ object CatalogValidator {
             require(row[3] == "true" || row[3] == "false") {
                 "$fileName row $rowNumber has an invalid pc value."
             }
+            if (hasCloud) {
+                require(row[4] == "true" || row[4] == "false") {
+                    "$fileName row $rowNumber has an invalid cloud value."
+                }
+            }
             require(row[2] == "true" || row[3] == "true") {
                 "$fileName row $rowNumber has no supported platform."
             }
@@ -60,19 +79,27 @@ object CatalogValidator {
             val storePathIndex: Int
             val newSinceDateIndex: Int
             if (processed) {
-                require(row[4] in AppConfig.ALLOWED_CATEGORIES) {
+                val categoryIndex = if (hasCloud) 5 else 4
+                require(row[categoryIndex] in AppConfig.ALLOWED_CATEGORIES) {
                     "$fileName row $rowNumber has an invalid category."
                 }
-                storePathIndex = 5
-                newSinceDateIndex = 6
+                storePathIndex = if (hasCloud) 6 else 5
+                newSinceDateIndex = if (hasCloud) 7 else 6
             } else {
-                storePathIndex = 4
-                newSinceDateIndex = 5
+                storePathIndex = if (hasCloud) 5 else 4
+                newSinceDateIndex = if (hasCloud) 6 else 5
             }
             StorePath.validate(row[storePathIndex], productId)
             require(CatalogProcessor.isValidNewSinceDate(row[newSinceDateIndex])) {
                 "$fileName row $rowNumber has an invalid newSinceDate."
             }
         }
+    }
+
+    private enum class CsvFormat {
+        SOURCE,
+        PROCESSED,
+        PREVIOUS_SOURCE,
+        PREVIOUS_PROCESSED,
     }
 }

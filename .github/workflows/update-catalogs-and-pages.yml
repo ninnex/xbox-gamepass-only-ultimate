@@ -93,7 +93,7 @@ jobs:
           for file in "${classified_source_files[@]}"; do
             [[ -s "$file" ]] || { echo "$file is empty" >&2; exit 1; }
             header=$(head -n 1 "$file")
-            [[ "$header" == 'name,productId,console,pc,category,storePath,newSinceDate' ]] || {
+            [[ "$header" == 'name,productId,console,pc,cloud,category,storePath,newSinceDate' ]] || {
               echo "$file has an invalid header: $header" >&2
               exit 1
             }
@@ -102,7 +102,7 @@ jobs:
           for file in "${unclassified_source_files[@]}"; do
             [[ -s "$file" ]] || { echo "$file is empty" >&2; exit 1; }
             header=$(head -n 1 "$file")
-            [[ "$header" == 'name,productId,console,pc,storePath,newSinceDate' ]] || {
+            [[ "$header" == 'name,productId,console,pc,cloud,storePath,newSinceDate' ]] || {
               echo "$file has an invalid header: $header" >&2
               exit 1
             }
@@ -111,7 +111,7 @@ jobs:
           for file in "${processed_files[@]}"; do
             [[ -s "$file" ]] || { echo "$file is empty" >&2; exit 1; }
             header=$(head -n 1 "$file")
-            [[ "$header" == 'name,productId,console,pc,category,storePath,newSinceDate' ]] || {
+            [[ "$header" == 'name,productId,console,pc,cloud,category,storePath,newSinceDate' ]] || {
               echo "$file has an invalid header: $header" >&2
               exit 1
             }

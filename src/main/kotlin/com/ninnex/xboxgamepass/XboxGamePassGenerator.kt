@@ -14,6 +14,7 @@ class XboxGamePassGenerator(
 ) {
     fun generate(outputDirectory: Path): GenerationResult {
         val loadedCatalogs = loadCatalogSources()
+        val cloudProductIds = client.loadCloudProductIds()
         val allProductIds = AppConfig.catalogs.flatMap { catalog ->
             loadedCatalogs.getValue(catalog.key).flatMap { it.ids }
         }
@@ -26,6 +27,7 @@ class XboxGamePassGenerator(
         fun rows(key: String): List<GameRow> = CatalogProcessor.buildCatalogRows(
             if (key == "essential") essentialSources else loadedCatalogs.getValue(key),
             products,
+            cloudProductIds,
         )
 
         val rawCatalogs = Catalogs(
@@ -35,6 +37,7 @@ class XboxGamePassGenerator(
             eaPlay = rows("eaPlay"),
             ubisoftPlus = rows("ubisoftPlus"),
         )
+        logUnmatchedCloudProductIds(rawCatalogs, cloudProductIds)
         val rawProcessed = CatalogProcessor.buildProcessedRows(rawCatalogs)
         val dated = CatalogHistory.applyNewSinceDates(
             outputDirectory = outputDirectory,
@@ -63,6 +66,23 @@ class XboxGamePassGenerator(
             println("[Phase B] New-game tracking baseline established without marking existing games.")
         }
         return GenerationResult(catalogs, processed, catalogInfo, files)
+    }
+
+    private fun logUnmatchedCloudProductIds(catalogs: Catalogs, cloudProductIds: Set<String>) {
+        val publishedIds = sequenceOf(
+            catalogs.ultimate,
+            catalogs.premium,
+            catalogs.essential,
+            catalogs.eaPlay,
+            catalogs.ubisoftPlus,
+        ).flatten().mapTo(hashSetOf()) { it.productId }
+        val unmatched = (cloudProductIds - publishedIds).sorted()
+        if (unmatched.isNotEmpty()) {
+            println(
+                "[Cloud] ${unmatched.size} Cloud Product IDs have no published row; " +
+                    "sample: ${unmatched.take(20).joinToString(", ")}",
+            )
+        }
     }
 
     private fun loadCatalogSources(): Map<String, List<PlatformProductIds>> {

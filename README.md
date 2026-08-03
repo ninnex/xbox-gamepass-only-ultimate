@@ -38,7 +38,7 @@ The default output directory is `data/`. A different output directory can be sup
 ./mvnw --batch-mode exec:java -Dexec.args="build/generated-data"
 ```
 
-The program queries the ten configured SIGL catalog sources and resolves their complete set of unique Product IDs in one Display Catalog request. It resolves an official Xbox Store URL for every Product ID, preserves per-list new-game dates, and validates the complete candidate set before replacing any published data. It never requests an individual Xbox Store page: when structured product metadata has no Store URL, it uses the official `-/PRODUCT_ID` route directly. ICU4J supplies the `en-US` collation used to reproduce Phase A JavaScript ordering.
+The program queries the ten configured SIGL catalog sources plus one Ultimate-context Xbox Cloud Gaming list, then resolves the complete set of catalog Product IDs in one Display Catalog request. It marks Cloud support by exact normalized Product ID, resolves an official Xbox Store URL for every published row, preserves per-list new-game dates, and validates the complete candidate set before replacing any published data. A failed or empty Cloud response aborts generation. It never requests an individual Xbox Store page: when structured product metadata has no Store URL, it uses the official `-/PRODUCT_ID` route directly. ICU4J supplies the `en-US` collation used to reproduce Phase A JavaScript ordering.
 
 To generate into a candidate directory while comparing against the currently published baseline:
 
@@ -66,7 +66,7 @@ Published site: <https://ninnex.github.io/xbox-gamepass-only-ultimate/>
 
 The static view in `index.html` reads all seven CSV files and `catalog-info.json` directly. Its selector exposes five result sets: Ultimate minus Premium, Ultimate Exclusive, full Ultimate, full Premium, and full Essential.
 
-It provides English search, platform and classification filters, category counts, list and grid layouts, responsive mobile behavior, official Xbox Store links, and explicit loading and error states. A **New game** label is calculated in the browser from `newSinceDate` and `newGameDisplayDays`; the CSV remains unchanged when the label expires.
+It provides English search, native-platform and Cloud Gaming filters, classification filters, category counts, list and grid layouts, responsive mobile behavior, official Xbox Store links, and explicit loading and error states. A **New game** label is calculated in the browser from `newSinceDate` and `newGameDisplayDays`; the CSV remains unchanged when the label expires.
 
 The visible timestamp comes from `catalog-info.json:lastCheckedAt` and therefore represents the latest successful catalog query, even when no CSV changed. View changes do not have a dedicated `push` trigger. To publish a view change immediately, run **Update catalogs and deploy Pages** manually from GitHub Actions after committing it to `main`; otherwise the next scheduled catalog run will deploy the current `index.html`.
 
@@ -74,22 +74,22 @@ The visible timestamp comes from `catalog-info.json:lastCheckedAt` and therefore
 
 | File | Columns | Purpose |
 | --- | --- | --- |
-| `data/ultimate.csv` | `name,productId,console,pc,category,storePath,newSinceDate` | Full Ultimate catalog, classified by minimum access tier or bundled source |
-| `data/premium.csv` | `name,productId,console,pc,category,storePath,newSinceDate` | Full Premium catalog, classified as Essential or Premium |
-| `data/essential.csv` | `name,productId,console,pc,category,storePath,newSinceDate` | Full Essential catalog, classified as Essential |
-| `data/ea-play.csv` | `name,productId,console,pc,storePath,newSinceDate` | Full EA Play source catalog |
-| `data/ubisoft-plus.csv` | `name,productId,console,pc,storePath,newSinceDate` | Full Ubisoft+ Classics source catalog |
-| `data/ultimate-no-premium.csv` | `name,productId,console,pc,category,storePath,newSinceDate` | Ultimate minus Premium, classified by source |
-| `data/ultimate-exclusive.csv` | `name,productId,console,pc,category,storePath,newSinceDate` | Ultimate games outside Premium, EA Play, and Ubisoft+ Classics |
+| `data/ultimate.csv` | `name,productId,console,pc,cloud,category,storePath,newSinceDate` | Full Ultimate catalog, classified by minimum access tier or bundled source |
+| `data/premium.csv` | `name,productId,console,pc,cloud,category,storePath,newSinceDate` | Full Premium catalog, classified as Essential or Premium |
+| `data/essential.csv` | `name,productId,console,pc,cloud,category,storePath,newSinceDate` | Full Essential catalog, classified as Essential |
+| `data/ea-play.csv` | `name,productId,console,pc,cloud,storePath,newSinceDate` | Full EA Play source catalog |
+| `data/ubisoft-plus.csv` | `name,productId,console,pc,cloud,storePath,newSinceDate` | Full Ubisoft+ Classics source catalog |
+| `data/ultimate-no-premium.csv` | `name,productId,console,pc,cloud,category,storePath,newSinceDate` | Ultimate minus Premium, classified by source |
+| `data/ultimate-exclusive.csv` | `name,productId,console,pc,cloud,category,storePath,newSinceDate` | Ultimate games outside Premium, EA Play, and Ubisoft+ Classics |
 | `data/catalog-info.json` | Common JSON configuration | Store base URL, new-game display duration, last successful check, and CSV change result |
 
-All CSV files use UTF-8 without BOM, LF (`\n`) line endings, lowercase `true`/`false` values, and English catalog titles and category values. `storePath` comes from structured Xbox product metadata when available; otherwise it is the official `-/PRODUCT_ID` route. Every path ends in the uppercase Product ID. `newSinceDate` is empty for the migration baseline; later additions use `YYYY-MM-DD` and retain their first-seen date while they remain in that specific list.
+All CSV files use UTF-8 without BOM, LF (`\n`) line endings, lowercase `true`/`false` values, and English catalog titles and category values. `console` and `pc` describe native catalog availability; `cloud` records whether the Product ID appeared in the US Xbox Cloud Gaming list for Ultimate during the latest successful generation. `storePath` comes from structured Xbox product metadata when available; otherwise it is the official `-/PRODUCT_ID` route. Every path ends in the uppercase Product ID. `newSinceDate` is empty for the migration baseline; later additions use `YYYY-MM-DD` and retain their first-seen date while they remain in that specific list.
 
 ## Scope
 
 - Market: United States (`US`)
 - Language: English (`en-us`)
-- Platforms: Windows PC, Xbox One, and Xbox Series X|S
+- Capabilities: native Windows PC, native Xbox One/Series X|S, and Xbox Cloud Gaming
 - Name matching: exact `ProductTitle`; no title normalization
 - Full Ultimate category priority: `Essential`, `Premium`, `EA Play`, `Ubisoft+ Classics`, then `Ultimate Exclusive`
 - Ultimate-minus-Premium category priority: `EA Play`, then `Ubisoft+ Classics`, then `Ultimate Exclusive`

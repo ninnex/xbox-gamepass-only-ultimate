@@ -20,8 +20,8 @@ class CsvWriterTest {
     fun `writes UTF-8 contract with LF and no BOM`() {
         val csv = CsvWriter.sourceCsv(listOf(game("Game")))
 
-        assertTrue(csv.startsWith("name,productId,console,pc,storePath,newSinceDate\n"))
-        assertTrue(csv.endsWith("Game,9TEST0000000,true,false,game/9TEST0000000,\n"))
+        assertTrue(csv.startsWith("name,productId,console,pc,cloud,storePath,newSinceDate\n"))
+        assertTrue(csv.endsWith("Game,9TEST0000000,true,false,true,game/9TEST0000000,\n"))
         assertFalse(csv.startsWith('\uFEFF'))
         assertFalse('\r' in csv)
     }
@@ -66,12 +66,12 @@ class CsvWriterTest {
             CsvWriter.createFiles(catalogs, processed)
                 .first { it.name == "ultimate.csv" }
                 .content
-                .startsWith("name,productId,console,pc,category,storePath,newSinceDate\n"),
+                .startsWith("name,productId,console,pc,cloud,category,storePath,newSinceDate\n"),
         )
     }
 
     private fun game(name: String): GameRow =
-        GameRow(name, "9TEST0000000", true, false, "game/9TEST0000000")
+        GameRow(name, "9TEST0000000", true, false, true, "game/9TEST0000000")
 
     private fun processed(
         name: String,
@@ -82,6 +82,7 @@ class CsvWriterTest {
             "9TEST0000000",
             true,
             false,
+            true,
             category,
             "game/9TEST0000000",
         )

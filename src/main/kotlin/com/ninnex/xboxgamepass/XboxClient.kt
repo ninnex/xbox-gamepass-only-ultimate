@@ -15,6 +15,8 @@ import java.util.Locale
 interface XboxCatalogClient {
     fun loadSigl(source: CatalogSource, catalogName: String): PlatformProductIds
 
+    fun loadCloudProductIds(): Set<String>
+
     fun loadProducts(productIds: List<String>): Map<String, ProductMetadata>
 }
 
@@ -24,6 +26,7 @@ class XboxClient(
         .connectTimeout(AppConfig.REQUEST_TIMEOUT)
         .followRedirects(HttpClient.Redirect.NORMAL)
         .build(),
+    private val textFetcher: ((URI, String) -> String)? = null,
 ) : XboxCatalogClient {
     override fun loadSigl(source: CatalogSource, catalogName: String): PlatformProductIds {
         val data = fetchJson(
@@ -40,21 +43,31 @@ class XboxClient(
             "$catalogName ${source.platform.logName()} catalog",
         )
 
-        check(data.isArray) { "$catalogName ${source.platform.logName()} is not a list." }
-        val ids = linkedSetOf<String>()
-        data.forEach { item ->
-            item.get("id")
-                ?.takeIf(JsonNode::isTextual)
-                ?.asText()
-                ?.trim()
-                ?.takeIf(String::isNotEmpty)
-                ?.uppercase(Locale.ROOT)
-                ?.let(ids::add)
-        }
+        val ids = extractProductIds(data, "$catalogName ${source.platform.logName()}")
         check(ids.isNotEmpty()) { "$catalogName ${source.platform.logName()} returned no games." }
 
         println("[Phase B] $catalogName ${source.platform.logName()}: ${ids.size} product IDs.")
         return PlatformProductIds(source.platform, ids.toList())
+    }
+
+    override fun loadCloudProductIds(): Set<String> {
+        val data = fetchJson(
+            buildUri(
+                AppConfig.SIGL_ENDPOINT,
+                linkedMapOf(
+                    "id" to AppConfig.CLOUD_LIST_ID,
+                    "language" to AppConfig.LANGUAGE,
+                    "market" to AppConfig.MARKET,
+                    "platformContext" to AppConfig.CLOUD_PLATFORM_CONTEXT,
+                    "subscriptionContext" to AppConfig.CLOUD_SUBSCRIPTION_CONTEXT,
+                ),
+            ),
+            "Xbox Cloud Gaming catalog",
+        )
+        val ids = extractProductIds(data, "Xbox Cloud Gaming catalog")
+        check(ids.isNotEmpty()) { "Xbox Cloud Gaming catalog returned no games." }
+        println("[Cloud] Xbox Cloud Gaming: ${ids.size} product IDs.")
+        return ids
     }
 
     override fun loadProducts(productIds: List<String>): Map<String, ProductMetadata> {
@@ -173,7 +186,19 @@ class XboxClient(
         .associateByTo(linkedMapOf()) { it.productId }
 
     private fun fetchJson(uri: URI, label: String): JsonNode {
-        return objectMapper.readTree(fetchText(uri, label))
+        return objectMapper.readTree(textFetcher?.invoke(uri, label) ?: fetchText(uri, label))
+    }
+
+    private fun extractProductIds(data: JsonNode, label: String): LinkedHashSet<String> {
+        check(data.isArray) { "$label is not a list." }
+        return data.mapNotNullTo(linkedSetOf()) { item ->
+            item.get("id")
+                ?.takeIf(JsonNode::isTextual)
+                ?.asText()
+                ?.trim()
+                ?.takeIf(String::isNotEmpty)
+                ?.uppercase(Locale.ROOT)
+        }
     }
 
     private fun fetchText(uri: URI, label: String): String {

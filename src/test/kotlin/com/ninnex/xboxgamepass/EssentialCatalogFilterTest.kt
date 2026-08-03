@@ -27,7 +27,7 @@ class EssentialCatalogFilterTest {
             ),
             products,
         )
-        val rows = CatalogProcessor.buildCatalogRows(filtered, products)
+        val rows = CatalogProcessor.buildCatalogRows(filtered, products, emptySet())
 
         assertEquals(listOf(pcId), filtered.single { it.platform == Platform.PC }.ids)
         assertTrue(filtered.single { it.platform == Platform.CONSOLE }.ids.isEmpty())
@@ -60,11 +60,13 @@ class EssentialCatalogFilterTest {
     fun `generator removes free games only from Essential and accepts unknown prices elsewhere`() {
         val root = Files.createTempDirectory("essential-filter-generator-")
         try {
+            val client = FakeCatalogClient()
             val result = XboxGamePassGenerator(
-                client = FakeCatalogClient(),
+                client = client,
                 clock = Clock.fixed(Instant.parse("2026-07-26T12:00:00Z"), ZoneOffset.UTC),
             ).generate(root.resolve("baseline"))
 
+            assertEquals(1, client.cloudCalls)
             assertEquals(listOf(FakeCatalogClient.ESSENTIAL_PAID_ID), result.catalogs.essential.map {
                 it.productId
             })
@@ -110,6 +112,29 @@ class EssentialCatalogFilterTest {
         }
     }
 
+    @Test
+    fun `Cloud failure aborts generation before files are changed`() {
+        val root = Files.createTempDirectory("cloud-failure-")
+        try {
+            val output = Files.createDirectories(root.resolve("published"))
+            val marker = output.resolve("unchanged.txt")
+            Files.writeString(marker, "keep")
+
+            assertFailsWith<IllegalStateException> {
+                XboxGamePassGenerator(
+                    client = FakeCatalogClient(failCloud = true),
+                ).generate(output)
+            }
+
+            assertEquals("keep", Files.readString(marker))
+            assertEquals(setOf("unchanged.txt"), Files.list(output).use { paths ->
+                paths.map { it.fileName.toString() }.toList().toSet()
+            })
+        } finally {
+            deleteRecursively(root)
+        }
+    }
+
     private fun product(id: String, title: String, status: PriceStatus) =
         ProductMetadata(id, title, StorePath.fromProductId(id), status)
 
@@ -122,7 +147,11 @@ class EssentialCatalogFilterTest {
 
     private class FakeCatalogClient(
         private val essentialPaidStatus: PriceStatus = PriceStatus.PAID,
+        private val failCloud: Boolean = false,
     ) : XboxCatalogClient {
+        var cloudCalls = 0
+            private set
+
         override fun loadSigl(
             source: CatalogSource,
             catalogName: String,
@@ -140,6 +169,12 @@ class EssentialCatalogFilterTest {
                 else -> error("Unexpected catalog $catalogName")
             }
             return PlatformProductIds(source.platform, ids)
+        }
+
+        override fun loadCloudProductIds(): Set<String> {
+            cloudCalls += 1
+            check(!failCloud) { "Cloud unavailable" }
+            return setOf(ULTIMATE_ID, ESSENTIAL_PAID_ID)
         }
 
         override fun loadProducts(productIds: List<String>): Map<String, ProductMetadata> {
