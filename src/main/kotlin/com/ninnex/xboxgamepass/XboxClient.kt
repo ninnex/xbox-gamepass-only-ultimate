@@ -110,7 +110,7 @@ class XboxClient(
                     "bigIds" to ids.joinToString(","),
                     "market" to AppConfig.MARKET,
                     "languages" to AppConfig.LANGUAGE,
-                    "MS-CV" to AppConfig.MS_CV,
+                    "MS-CV" to MicrosoftCorrelationVector.generate(),
                 ),
             ),
             "complete product set",

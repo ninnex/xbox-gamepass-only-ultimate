@@ -1295,7 +1295,7 @@
         </div>
         <footer class="panel-footer">
           <div class="legend" aria-label="Classification legend"></div>
-          <span>United States catalog · PC, Console and Cloud</span>
+          <span>United States catalog · Cloud, Console and PC</span>
         </footer>
       </section>
     </main>
@@ -1675,12 +1675,17 @@
         return counts;
       }
 
-      function filteredGames() {
+      function gamesMatchingSearchAndPlatform() {
         return currentDataset().filter(function (game) {
           const searchMatch = game.name.toLocaleLowerCase('en-US').includes(state.search);
-          const categoryMatch = state.category === 'all' || game.category === state.category;
           const platformMatch = state.platform === 'all' || game[state.platform];
-          return searchMatch && categoryMatch && platformMatch;
+          return searchMatch && platformMatch;
+        });
+      }
+
+      function filteredGames(items) {
+        return items.filter(function (game) {
+          return state.category === 'all' || game.category === state.category;
         });
       }
 
@@ -1861,9 +1866,9 @@
           headers.push({ label: 'Classification', className: 'col-classification' });
         }
         headers.push(
-          { label: 'PC', className: 'col-platform col-pc' },
+          { label: 'Cloud', className: 'col-platform col-cloud' },
           { label: 'Console', className: 'col-platform col-console' },
-          { label: 'Cloud', className: 'col-platform col-cloud' }
+          { label: 'PC', className: 'col-platform col-pc' }
         );
         headers.forEach(function (header) {
           const th = document.createElement('th');
@@ -1902,18 +1907,18 @@
           const classification = document.createElement('td');
           classification.className = 'col-classification';
           if (game.category) classification.append(createBadge(game.category));
-          const pc = document.createElement('td');
-          pc.className = 'center col-platform col-pc';
-          pc.append(createAvailability(game.pc, 'PC'));
-          const consoleCell = document.createElement('td');
-          consoleCell.className = 'center col-platform col-console';
-          consoleCell.append(createAvailability(game.console, 'Console'));
           const cloud = document.createElement('td');
           cloud.className = 'center col-platform col-cloud';
           cloud.append(createAvailability(game.cloud, 'Xbox Cloud Gaming'));
+          const consoleCell = document.createElement('td');
+          consoleCell.className = 'center col-platform col-console';
+          consoleCell.append(createAvailability(game.console, 'Console'));
+          const pc = document.createElement('td');
+          pc.className = 'center col-platform col-pc';
+          pc.append(createAvailability(game.pc, 'PC'));
           row.append(rank, identity);
           if (showClassification) row.append(classification);
-          row.append(pc, consoleCell, cloud);
+          row.append(cloud, consoleCell, pc);
           tbody.append(row);
         });
 
@@ -1935,15 +1940,10 @@
           const platforms = document.createElement('span');
           platforms.className = 'platforms';
           const labels = [];
-          if (game.pc) labels.push('PC');
+          if (game.cloud) labels.push('Cloud');
           if (game.console) labels.push('Console');
+          if (game.pc) labels.push('PC');
           platforms.textContent = labels.join(' · ');
-          if (game.cloud) {
-            const cloud = document.createElement('span');
-            cloud.className = 'cloud-card-capability';
-            cloud.textContent = (labels.length > 0 ? ' · ' : '') + 'Cloud';
-            platforms.append(cloud);
-          }
           details.append(platforms);
           card.append(details);
           grid.append(card);
@@ -1971,13 +1971,15 @@
         return tab;
       }
 
-      function updateCategoryControls() {
-        const dataset = currentDataset();
-        const counts = categoryCounts(dataset);
+      function updateCategoryControls(items) {
+        const counts = categoryCounts(items);
         const categories = CATEGORY_ORDER.filter(function (category) {
           return counts[category] > 0;
         });
         const hasCategories = categories.length > 0;
+        if (state.category !== 'all' && counts[state.category] === 0) {
+          state.category = 'all';
+        }
         quickTabs.hidden = !hasCategories;
         legend.hidden = !hasCategories;
         quickTabs.replaceChildren();
@@ -1999,8 +2001,9 @@
       function render() {
         if (!state.loaded) return;
         closeMembershipTooltip(false);
-        updateCategoryControls();
-        const items = filteredGames();
+        const categoryItems = gamesMatchingSearchAndPlatform();
+        updateCategoryControls(categoryItems);
+        const items = filteredGames(categoryItems);
         gridResultCount.textContent = formatResultCount(items.length);
         gridResultCount.hidden = state.view !== 'grid' || items.length === 0;
         if (items.length === 0) {

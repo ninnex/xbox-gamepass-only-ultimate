@@ -76,7 +76,7 @@ Status: **Implemented in `main` on August 2, 2026.**
 
 Kotlin performs one additional Ultimate-context SIGL request for the US Xbox Cloud Gaming list, normalizes its Product IDs, and marks matching rows through exact Product ID comparison. The request is fail-closed: an invalid, empty, or failed Cloud response aborts generation before published files are replaced.
 
-The `cloud` boolean is stored after `pc` in all seven CSV files. The view validates that contract and exposes Cloud as a mutually exclusive option in the existing platform filter. Desktop tables show a Cloud column with accessible `sr-only` text; grid cards show active capabilities in `PC · Console · Cloud` order. On screens up to 600 px, the compact list hides availability columns, while grid cards continue to show Cloud.
+The `cloud` boolean is stored after `pc` in all seven CSV files. The view validates that contract and exposes Cloud as a mutually exclusive option in the existing platform filter. Desktop tables show a Cloud column with accessible `sr-only` text; grid cards show active capabilities in `Cloud · Console · PC` order. On screens up to 600 px, the compact list hides availability columns, while grid cards continue to show Cloud.
 
 The implementation record, request contract, tests, and final design decisions are documented in [`09-xbox-GP-cloud-gaming-plan.md`](09-xbox-GP-cloud-gaming-plan.md).
 
