@@ -464,26 +464,6 @@
         gap: 14px;
       }
 
-      .summary-label {
-        display: flex;
-        align-items: baseline;
-        gap: 7px;
-        padding-right: 15px;
-        border-right: 1px solid var(--line);
-        color: var(--summary-text);
-        font-size: 12px;
-        font-weight: 750;
-        letter-spacing: 0.04em;
-        text-transform: uppercase;
-        white-space: nowrap;
-      }
-
-      .summary-label strong {
-        color: var(--ink);
-        font-size: 14px;
-        letter-spacing: 0;
-      }
-
       .tab {
         border: 0;
         border-radius: 10px;
@@ -925,10 +905,6 @@
           gap: 10px;
         }
 
-        .summary-label {
-          padding-right: 10px;
-        }
-
         .tab {
           padding-right: 11px;
           padding-left: 11px;
@@ -1018,10 +994,6 @@
           gap: 9px;
         }
 
-        .summary-label {
-          display: none;
-        }
-
         .quick-tabs {
           padding-bottom: 3px;
         }
@@ -1037,12 +1009,6 @@
       }
 
       @media (max-width: 600px) {
-        .summary-label {
-          display: flex;
-          padding-right: 0;
-          border-right: 0;
-        }
-
         .data-panel[data-view="list"] > .catalog-updated {
           display: none;
         }
@@ -1260,7 +1226,6 @@
         </div>
 
         <div class="right-tools">
-          <div class="summary-label"><strong id="resultCount">0</strong> results</div>
           <div class="quick-tabs" role="tablist" aria-label="Classification"></div>
           <div class="view-switch" aria-label="View options">
             <button class="icon-button" data-view="grid" aria-label="Grid view" aria-pressed="false">
@@ -1398,7 +1363,6 @@
       };
 
       const content = document.querySelector('#content');
-      const resultCount = document.querySelector('#resultCount');
       const status = document.querySelector('#status');
       const statusText = document.querySelector('#statusText');
       const dataPanel = document.querySelector('.data-panel');
@@ -1654,7 +1618,6 @@
 
         wrapper.append(inner);
         content.append(wrapper);
-        resultCount.textContent = '0';
       }
 
       function currentDataset() {
@@ -1672,12 +1635,17 @@
         return counts;
       }
 
-      function filteredGames() {
+      function gamesMatchingSearchAndPlatform() {
         return currentDataset().filter(function (game) {
           const searchMatch = game.name.toLocaleLowerCase('en-US').includes(state.search);
-          const categoryMatch = state.category === 'all' || game.category === state.category;
           const platformMatch = state.platform === 'all' || game[state.platform];
-          return searchMatch && categoryMatch && platformMatch;
+          return searchMatch && platformMatch;
+        });
+      }
+
+      function filteredGames(items) {
+        return items.filter(function (game) {
+          return state.category === 'all' || game.category === state.category;
         });
       }
 
@@ -1960,13 +1928,15 @@
         return tab;
       }
 
-      function updateCategoryControls() {
-        const dataset = currentDataset();
-        const counts = categoryCounts(dataset);
+      function updateCategoryControls(items) {
+        const counts = categoryCounts(items);
         const categories = CATEGORY_ORDER.filter(function (category) {
           return counts[category] > 0;
         });
         const hasCategories = categories.length > 0;
+        if (state.category !== 'all' && counts[state.category] === 0) {
+          state.category = 'all';
+        }
         quickTabs.hidden = !hasCategories;
         legend.hidden = !hasCategories;
         quickTabs.replaceChildren();
@@ -1988,9 +1958,9 @@
       function render() {
         if (!state.loaded) return;
         closeMembershipTooltip(false);
-        updateCategoryControls();
-        const items = filteredGames();
-        resultCount.textContent = String(items.length);
+        const categoryItems = gamesMatchingSearchAndPlatform();
+        updateCategoryControls(categoryItems);
+        const items = filteredGames(categoryItems);
         if (items.length === 0) {
           dataPanel.dataset.view = 'empty';
           content.replaceChildren();
