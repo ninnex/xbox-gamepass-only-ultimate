@@ -1296,7 +1296,7 @@
         </div>
         <footer class="panel-footer">
           <div class="legend" aria-label="Classification legend"></div>
-          <span>United States catalog · PC, Console and Cloud</span>
+          <span>United States catalog · Cloud, Console and PC</span>
         </footer>
       </section>
     </main>
@@ -1858,9 +1858,9 @@
           headers.push({ label: 'Classification', className: 'col-classification' });
         }
         headers.push(
-          { label: 'PC', className: 'col-platform col-pc' },
+          { label: 'Cloud', className: 'col-platform col-cloud' },
           { label: 'Console', className: 'col-platform col-console' },
-          { label: 'Cloud', className: 'col-platform col-cloud' }
+          { label: 'PC', className: 'col-platform col-pc' }
         );
         headers.forEach(function (header) {
           const th = document.createElement('th');
@@ -1896,18 +1896,18 @@
           const classification = document.createElement('td');
           classification.className = 'col-classification';
           if (game.category) classification.append(createBadge(game.category));
-          const pc = document.createElement('td');
-          pc.className = 'center col-platform col-pc';
-          pc.append(createAvailability(game.pc, 'PC'));
-          const consoleCell = document.createElement('td');
-          consoleCell.className = 'center col-platform col-console';
-          consoleCell.append(createAvailability(game.console, 'Console'));
           const cloud = document.createElement('td');
           cloud.className = 'center col-platform col-cloud';
           cloud.append(createAvailability(game.cloud, 'Xbox Cloud Gaming'));
+          const consoleCell = document.createElement('td');
+          consoleCell.className = 'center col-platform col-console';
+          consoleCell.append(createAvailability(game.console, 'Console'));
+          const pc = document.createElement('td');
+          pc.className = 'center col-platform col-pc';
+          pc.append(createAvailability(game.pc, 'PC'));
           row.append(rank, identity);
           if (showClassification) row.append(classification);
-          row.append(pc, consoleCell, cloud);
+          row.append(cloud, consoleCell, pc);
           tbody.append(row);
         });
 
@@ -1929,15 +1929,10 @@
           const platforms = document.createElement('span');
           platforms.className = 'platforms';
           const labels = [];
-          if (game.pc) labels.push('PC');
+          if (game.cloud) labels.push('Cloud');
           if (game.console) labels.push('Console');
+          if (game.pc) labels.push('PC');
           platforms.textContent = labels.join(' · ');
-          if (game.cloud) {
-            const cloud = document.createElement('span');
-            cloud.className = 'cloud-card-capability';
-            cloud.textContent = (labels.length > 0 ? ' · ' : '') + 'Cloud';
-            platforms.append(cloud);
-          }
           details.append(platforms);
           card.append(details);
           grid.append(card);
