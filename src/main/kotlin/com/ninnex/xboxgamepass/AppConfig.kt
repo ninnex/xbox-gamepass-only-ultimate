@@ -10,7 +10,6 @@ object AppConfig {
     const val CLOUD_PLATFORM_CONTEXT = "ConsoleGen8;ConsoleGen9;pc"
     const val CLOUD_SUBSCRIPTION_CONTEXT = "cfq7ttc0khs0"
     const val PRODUCTS_ENDPOINT = "https://displaycatalog.mp.microsoft.com/v7.0/products"
-    const val MS_CV = "DGU1mcuYo0WMMp+F.1"
     const val REQUEST_ATTEMPTS = 3
     val REQUEST_TIMEOUT: Duration = Duration.ofSeconds(60)
 
