@@ -572,14 +572,6 @@
         gap: 9px;
       }
 
-      .table-result-count {
-        color: var(--summary-text);
-        font-size: 10px;
-        font-weight: 650;
-        letter-spacing: 0.04em;
-        text-transform: uppercase;
-      }
-
       .col-classification {
         width: 190px;
       }
@@ -1073,10 +1065,6 @@
           align-items: baseline;
           justify-content: space-between;
           gap: 8px;
-        }
-
-        .table-result-count {
-          margin-right: auto;
         }
 
         .mobile-generated-date {
@@ -1879,14 +1867,11 @@
             heading.className = 'game-heading';
             const headingLabel = document.createElement('span');
             headingLabel.textContent = header.label;
-            const resultCount = document.createElement('span');
-            resultCount.className = 'table-result-count';
-            resultCount.textContent = formatResultCount(items.length);
             const mobileDate = document.createElement('span');
             mobileDate.className = 'mobile-generated-date';
             mobileDate.textContent = generatedDateText.textContent;
             mobileDate.hidden = generatedDate.hidden;
-            heading.append(headingLabel, resultCount, mobileDate);
+            heading.append(headingLabel, mobileDate);
             th.append(heading);
           } else {
             th.textContent = header.label;
