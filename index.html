@@ -39,6 +39,8 @@
         --green: #107c10;
         --green-dark: #075f09;
         --green-soft: #e8f4e8;
+        --new-filter: #047857;
+        --new-filter-soft: #d1fae5;
         --blue: #3666d6;
         --blue-soft: #eaf0ff;
         --violet: #7456d8;
@@ -82,6 +84,8 @@
         --green: #6fd06f;
         --green-dark: #8adb8a;
         --green-soft: #18371b;
+        --new-filter: #6ee7b7;
+        --new-filter-soft: #064e3b;
         --blue: #8eacff;
         --blue-soft: #1b294c;
         --violet: #b7a5ff;
@@ -394,7 +398,39 @@
       }
 
       .quick-tabs {
+        flex: 0 0 auto;
         gap: 4px;
+      }
+
+      .classification-filters {
+        display: flex;
+        align-items: center;
+        min-width: 0;
+        gap: 10px;
+      }
+
+      .category-new-row {
+        display: flex;
+        align-items: center;
+        min-width: 0;
+        overflow-x: auto;
+        gap: 4px;
+        scrollbar-width: none;
+      }
+
+      .category-new-row::-webkit-scrollbar {
+        display: none;
+      }
+
+      .new-filter-controls {
+        display: flex;
+        align-items: center;
+        flex: 0 0 auto;
+      }
+
+      .new-filter-button:disabled {
+        cursor: wait;
+        opacity: 0.65;
       }
 
       .control,
@@ -483,6 +519,11 @@
       .tab.active {
         color: var(--green);
         background: var(--green-soft);
+      }
+
+      .new-filter-button.active {
+        color: var(--new-filter);
+        background: var(--new-filter-soft);
       }
 
       .tab-count {
@@ -942,8 +983,8 @@
           justify-content: space-between;
         }
 
-        .quick-tabs {
-          overflow-x: auto;
+        .classification-filters {
+          flex: 1 1 auto;
         }
       }
 
@@ -1011,10 +1052,29 @@
 
         .right-tools {
           align-items: flex-start;
+          flex-wrap: nowrap;
           gap: 9px;
         }
 
+        .classification-filters {
+          width: auto;
+          flex: 1 1 auto;
+          align-items: stretch;
+          flex-direction: column;
+          gap: 8px;
+        }
+
+        .category-new-row {
+          width: 100%;
+        }
+
         .quick-tabs {
+          width: auto;
+          flex: 0 0 auto;
+          padding-bottom: 3px;
+        }
+
+        .new-filter-controls {
           padding-bottom: 3px;
         }
 
@@ -1245,7 +1305,24 @@
         </div>
 
         <div class="right-tools">
-          <div class="quick-tabs" role="tablist" aria-label="Classification"></div>
+          <div class="classification-filters">
+            <div class="category-new-row">
+              <div class="quick-tabs" role="tablist" aria-label="Classification"></div>
+              <div class="new-filter-controls">
+                <button
+                  id="newOnlyToggle"
+                  class="new-filter-button tab"
+                  type="button"
+                  aria-label="Show recently added games, 0 results"
+                  aria-pressed="false"
+                  disabled
+                >
+                  <span>New</span>
+                  <span id="newFilterCount" class="tab-count">0</span>
+                </button>
+              </div>
+            </div>
+          </div>
           <div class="view-switch" aria-label="View options">
             <button class="icon-button" data-view="grid" aria-label="Grid view" aria-pressed="false">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
@@ -1379,8 +1456,10 @@
         dataset: 'difference',
         search: '',
         category: 'all',
+        newOnly: false,
         platform: 'all',
         view: 'list',
+        todayUtc: null,
         loaded: false
       };
 
@@ -1396,6 +1475,8 @@
       const resultSetInfo = document.querySelector('#resultSetInfo');
       const resultSetTooltip = document.querySelector('#resultSetTooltip');
       const membershipTooltip = document.querySelector('#membershipTooltip');
+      const newOnlyToggle = document.querySelector('#newOnlyToggle');
+      const newFilterCount = document.querySelector('#newFilterCount');
       let activeMembershipBadge = null;
 
       function updateFilterExplanation() {
@@ -1578,6 +1659,7 @@
 
       async function loadCatalogs() {
         setStatus('loading');
+        newOnlyToggle.disabled = true;
         renderMessage('loading');
         showLastChecked(null);
         try {
@@ -1677,6 +1759,11 @@
         });
       }
 
+      function utcStartOfToday() {
+        const now = new Date();
+        return Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+      }
+
       function initials(name) {
         const words = name
           .replace(/[™®©:()\[\]]/g, ' ')
@@ -1707,13 +1794,17 @@
         return art;
       }
 
-      function isNewGame(game) {
-        if (!game.newSinceDate || !state.catalogInfo) return false;
-        const now = new Date();
-        const todayUtc = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+      function isNewGame(game, todayUtc, windowDays) {
+        if (
+          !game.newSinceDate ||
+          !Number.isFinite(todayUtc) ||
+          !Number.isInteger(windowDays) ||
+          windowDays <= 0
+        ) return false;
         const firstSeenUtc = Date.parse(game.newSinceDate + 'T00:00:00Z');
-        const ageInDays = Math.floor((todayUtc - firstSeenUtc) / 86400000);
-        return ageInDays >= 0 && ageInDays < state.catalogInfo.newGameDisplayDays;
+        if (Number.isNaN(firstSeenUtc)) return false;
+        const ageInDays = (todayUtc - firstSeenUtc) / 86400000;
+        return ageInDays >= 0 && ageInDays < windowDays;
       }
 
       function createNewGameBadge() {
@@ -1741,7 +1832,9 @@
         name.target = '_blank';
         name.rel = 'noopener noreferrer';
         titleRow.append(name);
-        if (isNewGame(game)) titleRow.append(createNewGameBadge());
+        if (isNewGame(game, state.todayUtc, state.catalogInfo.newGameDisplayDays)) {
+          titleRow.append(createNewGameBadge());
+        }
         const note = document.createElement('div');
         note.className = 'game-note';
         note.textContent = DATASET_LABELS[state.dataset];
@@ -1983,12 +2076,34 @@
         });
       }
 
+      function updateNewFilterControl(items) {
+        const newCount = items.filter(function (game) {
+          return isNewGame(game, state.todayUtc, state.catalogInfo.newGameDisplayDays);
+        }).length;
+        const active = state.newOnly;
+        newOnlyToggle.disabled = false;
+        newOnlyToggle.classList.toggle('active', active);
+        newOnlyToggle.setAttribute('aria-pressed', String(active));
+        newOnlyToggle.setAttribute(
+          'aria-label',
+          'Show recently added games, ' + formatResultCount(newCount)
+        );
+        newFilterCount.textContent = String(newCount);
+      }
+
       function render() {
         if (!state.loaded) return;
         closeMembershipTooltip(false);
-        const categoryItems = gamesMatchingSearchAndPlatform();
-        updateCategoryControls(categoryItems);
-        const items = filteredGames(categoryItems);
+        state.todayUtc = utcStartOfToday();
+        const baseItems = gamesMatchingSearchAndPlatform();
+        updateCategoryControls(baseItems);
+        const categoryItems = filteredGames(baseItems);
+        updateNewFilterControl(categoryItems);
+        const items = state.newOnly
+          ? categoryItems.filter(function (game) {
+            return isNewGame(game, state.todayUtc, state.catalogInfo.newGameDisplayDays);
+          })
+          : categoryItems;
         gridResultCount.textContent = formatResultCount(items.length);
         gridResultCount.hidden = state.view !== 'grid' || items.length === 0;
         if (items.length === 0) {
@@ -2028,6 +2143,11 @@
         state.category = 'all';
         updateFilterExplanation();
         closeResultSetTooltip();
+        render();
+      });
+
+      newOnlyToggle.addEventListener('click', function () {
+        state.newOnly = !state.newOnly;
         render();
       });
 

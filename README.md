@@ -66,7 +66,11 @@ Published site: <https://ninnex.github.io/xbox-gamepass-only-ultimate/>
 
 The static view in `index.html` reads all seven CSV files and `catalog-info.json` directly. Its selector exposes five result sets: Ultimate minus Premium, Ultimate Exclusive, full Ultimate, full Premium, and full Essential.
 
-It provides English search, native-platform and Cloud Gaming filters, classification filters, category counts, list and grid layouts, responsive mobile behavior, official Xbox Store links, and explicit loading and error states. The compact mobile list hides the availability columns, while mobile grid cards show active capabilities including Cloud. A **New game** label is calculated in the browser from `newSinceDate` and `newGameDisplayDays`; the CSV remains unchanged when the label expires.
+It provides English search, native-platform and Cloud Gaming filters, classification filters, category counts, list and grid layouts, responsive mobile behavior, official Xbox Store links, and explicit loading and error states. The compact mobile list hides the availability columns, while mobile grid cards show active capabilities including Cloud.
+
+The independent **New** chip can be combined with any classification, search, platform, or result set. Its contextual count is calculated after search, platform, and classification filters, and before the New-only filter itself. Changing result sets resets the classification to All while preserving the New state. When no recently added games match, the chip remains active with `New 0` and the existing empty state is shown.
+
+The **New** chip, the per-game **New** label, and the contextual count share the same browser-side UTC date rule based on `newSinceDate`. The published `catalog-info.json:newGameDisplayDays` value defines the window for all three behaviors. The CSV remains unchanged when a label expires.
 
 The visible timestamp comes from `catalog-info.json:lastCheckedAt` and therefore represents the latest successful catalog query, even when no CSV changed. View changes do not have a dedicated `push` trigger. To publish a view change immediately, run **Update catalogs and deploy Pages** manually from GitHub Actions after committing it to `main`; otherwise the next scheduled catalog run will deploy the current `index.html`.
 
@@ -79,6 +83,12 @@ Kotlin performs one additional Ultimate-context SIGL request for the US Xbox Clo
 The `cloud` boolean is stored after `pc` in all seven CSV files. The view validates that contract and exposes Cloud as a mutually exclusive option in the existing platform filter. Desktop tables show a Cloud column with accessible `sr-only` text; grid cards show active capabilities in `Cloud · Console · PC` order. On screens up to 600 px, the compact list hides availability columns, while grid cards continue to show Cloud.
 
 The implementation record, request contract, tests, and final design decisions are documented in [`09-xbox-GP-cloud-gaming-plan.md`](09-xbox-GP-cloud-gaming-plan.md).
+
+## Recently added filter implementation
+
+Status: **Implemented on August 9, 2026.**
+
+The view keeps classification and recency as separate filter dimensions. **New** is an accessible toggle button outside the classification tab list, exposes `aria-pressed`, retains its state when other filters change, and works in list and grid layouts on desktop and mobile. Its time window comes exclusively from `catalog-info.json:newGameDisplayDays`.
 
 ## Output contract
 
